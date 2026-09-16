@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Evo Agent System 的数学表达验证</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" />
+  <style>
+    :root {
+      --bg: #f1eee7;
+      --ink: #1b1916;
+      --muted: #6a655c;
+      --faint: #8a8478;
+      --rule: #d8d2c6;
+      --panel: #fffcf7;
+      --accent: #2f4a43;
+      --accent-soft: rgba(47, 74, 67, 0.08);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141311;
+        --ink: #ece7de;
+        --muted: #a39b8e;
+        --faint: #7a7468;
+        --rule: #3a372f;
+        --panel: #1c1b18;
+        --accent: #b7cfc6;
+        --accent-soft: rgba(183, 207, 198, 0.1);
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    body {
+      font-family: "Iowan Old Style", Palatino, "Palatino Linotype", "Songti SC", "Source Han Serif SC", serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    .page {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(250px, 0.8fr);
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+    .proof {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+      padding: 22px 24px 16px 32px;
+      border-right: 1px solid var(--rule);
+    }
+    .kicker {
+      margin: 0 0 4px;
+      font-size: 0.66rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--faint);
+      font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(1.05rem, 2.2vh, 1.55rem);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+    }
+    .depth {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0;
+      margin: 0 0 10px;
+      border-bottom: 1px solid var(--rule);
+      flex: 0 0 auto;
+    }
+    .tab {
+      margin: 0;
+      padding: 8px 4px 10px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--faint);
+      font: inherit;
+      font-size: 0.82rem;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+    }
+    .tab.is-on {
+      color: var(--ink);
+      border-bottom-color: var(--accent);
+    }
+    .tab:focus-visible { outline: none; color: var(--ink); }
+    .sheet {
+      display: none;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+    .sheet.is-on { display: flex; }
+    .parts {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 6px;
+      margin: 0 0 8px;
+      flex: 0 0 auto;
+    }
+    .part {
+      margin: 0;
+      padding: 6px 2px 5px;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: var(--panel);
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      text-align: center;
+    }
+    .part strong {
+      display: block;
+      font-style: italic;
+      font-size: clamp(0.95rem, 2vh, 1.12rem);
+      font-weight: 600;
+    }
+    .part span {
+      display: block;
+      margin-top: 1px;
+      font-size: 0.58rem;
+      letter-spacing: 0.03em;
+      color: var(--faint);
+      font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+    }
+    .part:hover,
+    .part:focus-visible,
+    .part.is-on {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .rail {
+      position: relative;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+    }
+    .rail > li {
+      min-height: 0;
+      flex: 1 1 0;
+      display: flex;
+    }
+    .rail::before {
+      content: "";
+      position: absolute;
+      left: 13px;
+      top: 10px;
+      bottom: 10px;
+      width: 1px;
+      background: var(--rule);
+    }
+    .line {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      width: 100%;
+      margin: 0;
+      padding: 2px 10px 2px 34px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      font: inherit;
+      cursor: pointer;
+    }
+    .line:hover,
+    .line:focus-visible,
+    .line.is-on {
+      background: var(--accent-soft);
+      outline: none;
+    }
+    .line.is-on::before,
+    .line:hover::before { background: var(--accent); }
+    .line::before {
+      content: "";
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      width: 9px;
+      height: 9px;
+      margin-top: -4.5px;
+      border-radius: 50%;
+      background: var(--rule);
+      z-index: 1;
+    }
+    .idx {
+      display: block;
+      font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin-bottom: 1px;
+    }
+    .eq, .fb {
+      margin: 0;
+      font-size: clamp(0.86rem, 1.9vh, 1.08rem);
+      overflow: hidden;
+    }
+    .eq .katex-display { margin: 0.08em 0; }
+    .eq { display: none; }
+    .eq.visible { display: block; }
+    .fb {
+      display: none;
+      font-style: italic;
+      letter-spacing: 0.01em;
+    }
+    .fb.visible { display: block; }
+    .fb sub { font-size: 0.62em; }
+    .hint {
+      margin: 6px 0 0;
+      font-size: 0.72rem;
+      color: var(--faint);
+      font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+      letter-spacing: 0.04em;
+      flex: 0 0 auto;
+    }
+    .stage {
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+      padding: 22px 28px;
+      display: flex;
+      align-items: center;
+    }
+    .float {
+      width: 100%;
+      max-height: 100%;
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--rule);
+      border-radius: 14px;
+      padding: 20px 22px 22px;
+      transform: translateY(14px);
+      opacity: 0;
+      transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+    }
+    .float.up { transform: translateY(0); opacity: 1; }
+    .float .tag {
+      margin: 0 0 10px;
+      font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+      font-size: 0.66rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .float h2 {
+      margin: 0 0 8px;
+      font-size: clamp(0.98rem, 2.1vh, 1.16rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .float .mini {
+      margin: 0 0 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--rule);
+      font-size: clamp(0.88rem, 1.9vh, 1.02rem);
+      overflow: hidden;
+    }
+    .float .mini .katex-display { margin: 0.08em 0; }
+    .float p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: clamp(0.8rem, 1.65vh, 0.93rem);
+    }
+    .float p:last-child { margin-bottom: 0; }
+    .float em { color: var(--ink); font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="proof">
+      <p class="kicker">Verification</p>
+      <h1>Evo Agent System 的数学表达验证</h1>
+      <div class="depth" role="tablist" aria-label="三层深度">
+        <button class="tab is-on" type="button" data-sheet="base" role="tab">Base · H 定义</button>
+        <button class="tab" type="button" data-sheet="gamma" role="tab">第一层 · 转换算子</button>
+        <button class="tab" type="button" data-sheet="git" role="tab">第二层 · 演进过程</button>
+      </div>
+
+      <div class="sheet is-on" id="sheet-base" role="tabpanel">
+        <div class="parts" aria-label="H 的六个部分">
+          <button class="part" type="button" data-part="E"><strong>E</strong><span>Agent Loop</span></button>
+          <button class="part" type="button" data-part="T"><strong>T</strong><span>工具</span></button>
+          <button class="part" type="button" data-part="C"><strong>C</strong><span>上下文</span></button>
+          <button class="part" type="button" data-part="S"><strong>S</strong><span>状态库</span></button>
+          <button class="part" type="button" data-part="L"><strong>L</strong><span>钩子</span></button>
+          <button class="part" type="button" data-part="V"><strong>V</strong><span>评测口</span></button>
+        </div>
+        <ol class="rail">
+          <li>
+            <button class="line" type="button" data-note="H">
+              <span class="idx">Def. 2.1</span>
+              <div class="eq" data-tex="H=(E,T,C,S,L,V)\in\mathcal{H}"></div>
+              <div class="fb">H = (E, T, C, S, L, V) ∈ ℋ</div>
+            </button>
+          </li>
+          <li>
+            <button class="line" type="button" data-note="min">
+              <span class="idx">必要 / 充分</span>
+              <div class="eq" data-tex="\{E,T\}\subseteq H\ \text{必要},\quad \{E,T,C,S,L,V\}=H\ \text{充分}"></div>
+              <div class="fb">{E,T} ⊆ H 必要；六件齐了充分</div>
+            </button>
+          </li>
+          <li>
+            <button class="line" type="button" data-note="lts">
+              <span class="idx">E 的语义</span>
+              <div class="eq" data-tex="E=(Q,\Sigma,\delta),\quad \delta:Q\times\Sigma\to Q"></div>
+              <div class="fb">E = (Q, Σ, δ)，δ : Q × Σ → Q</div>
+            </button>
+          </li>
+          <li>
+            <button class="line" type="button" data-note="commit">
+              <span class="idx">git 载荷</span>
+              <div class="eq" data-tex="\mathrm{commit}\ \Leftrightarrow\ H,\qquad S\neq\mathcal{H}"></div>
+              <div class="fb">commit ⇔ H，　S ≠ ℋ</div>
+            </button>
+          </li>
+          <li>
+            <button class="line" type="button" data-note="model">
+              <span class="idx">模型在外</span>
+              <div class="eq" data-tex="M\notin H,\qquad \Gamma\text{ 改 }H\text{ 不改 }M"></div>
+              <div class="fb">M ∉ H，Γ 改 H 不改 M</div>
+            </button>
+          </li>
+        </ol>
+      </div>
+
+      <div class="sheet" id="sheet-gamma" role="tabpanel">
+        <ol class="rail">
+          <li>
+            <button class="line" type="button" data-note="R">
+              <span class="idx">展开 1 · Runtime</span>
+              <div class="eq" data-tex="\tau = R(H),\qquad R:\mathcal{H}\to\mathcal{T}"></div>
+              <div class="fb">τ = R(H)，　R : ℋ → 𝒯</div>
+            </button>
+          </li>
+          <li>
+            <button class="line" type="button" data-note="Om">
+              <span class="idx">展开 2 · 观测</span>
+              <div class="eq" data-tex="o=\Omega(\tau)=\Omega(R(H)),\qquad \Omega:\mathcal{T}\to\mathcal{O}"></div>
+              <div class="fb">o = Ω(τ) = Ω(R(H))</div>
+            </button>
+          </li>
+          <li>
+            <button class="line" type="button" data-note="Phi">
+              <span class="idx">展开 3 · Evo</span>
+              <div class="eq" data-tex="H^{+}=\Phi(H,o),\qquad \Phi:\mathcal{H}\times\mathcal{O}\to\mathcal{H}"></div>
+              <div class="fb">H⁺ = Φ(H, o)</div>
+            </button>
+          </li>
+          <li>
+            <button class="line" type="button" data-note="Gamma">
+              <span class="idx">合成</span>
+              <div class="eq" data-tex="\Gamma(H)\;\triangleq\;\Phi(H,\Omega(R(H)))=\Phi\circ(\mathrm{id},\Omega\circ R)"></div>
+              <div class="fb">Γ(H) ≜ Φ(H, Ω(R(H)))</div>
+            </button>
+          </li>
+        </ol>
+      </div>
+
+      <div class="sheet" id="sheet-git" role="tabpanel">
+        <ol class="rail">
+          <li>
+            <button class="line" type="button" data-note="fwd">
+              <span class="idx">fwd · 正向</span>
+              <div class="eq" data-tex="\mathrm{fwd}(A)=B \iff H_B=\Gamma(H_A)\ \wedge\ \pi(B)=\{A\}"></div>
+              <div class="fb">fwd(A)=B  ⇔  H_B=Γ(H_A) ∧ π(B)={A}</div>
+            </button>
+          </li>
+          <li>
+            <button class="line" type="button" data-note="rev">
+              <span class="idx">rev · revert</span>
+              <div class="eq" data-tex="H(\mathrm{rev}(A,A^{-}))=H_{A^{-}},\quad \pi=\!\{A\},\quad \Gamma\ \text{不出现}"></div>
+              <div class="fb">H(rev(A,A⁻)) = H_{A⁻}，π={A}，Γ 不出现</div>
+            </button>
+          </li>
+          <li>
+            <button class="line" type="button" data-note="err">
+              <span class="idx">err · error commit</span>
+              <div class="eq" data-tex="\mathrm{err}(A,o_\bot)=A_\bot,\ \ \mathrm{ok}(A_\bot)=\bot,\ \ H_{A_\bot}\in\{H_A\}\cup\mathrm{im}\,\Phi"></div>
+              <div class="fb">err(A, o⊥)=A⊥，ok=⊥</div>
+            </button>
+          </li>
+          <li>
+            <button class="line" type="button" data-note="br">
+              <span class="idx">br · branch</span>
+              <div class="eq" data-tex="\mathrm{br}(\ell,A):\ \mathrm{refs}(\ell)=A,\quad \mathcal{R}\ \text{的 DAG 不变}"></div>
+              <div class="fb">br(ℓ, A)：refs(ℓ)=A，DAG 不变</div>
+            </button>
+          </li>
+          <li>
+            <button class="line" type="button" data-note="merge">
+              <span class="idx">merge</span>
+              <div class="eq" data-tex="H_M=\mu(H_{B_i})=\Phi(H_{\ast},\textstyle\bigoplus_i\Omega(R(H_{B_i}))),\ \pi(M)=\{B_i\}"></div>
+              <div class="fb">H_M = μ(H_{Bᵢ}) = Φ(H_*, ⊕ Ω(R(H_{Bᵢ})))</div>
+            </button>
+          </li>
+        </ol>
+      </div>
+      <p class="hint">Base 定义 H · 第一层展开 Γ · 第二层验证 git</p>
+    </section>
+
+    <aside class="stage">
+      <article class="float up" id="detail" aria-live="polite">
+        <p class="tag" id="d-tag"></p>
+        <h2 id="d-title"></h2>
+        <div class="mini" id="d-eq"></div>
+        <div id="d-body"></div>
+      </article>
+    </aside>
+  </div>
+
+  <script>
+    var PARTS = {
+      E: {
+        tag: "H · E",
+        title: "Agent Loop，不是 evo",
+        tex: "E:\\ \\text{observe–think–act}",
+        fb: "E: observe–think–act",
+        html: "<p><em>管什么：</em>看环境 → 想 → 动手的循环，停与纠错。Survey 写成 LTS。</p><p><em>不管什么：</em>工具清单（T），也不改 harness（Φ）。</p>"
+      },
+      T: {
+        tag: "H · T",
+        title: "工具注册表",
+        tex: "T:\\ \\text{tool registry}",
+        fb: "T: tool registry",
+        html: "<p><em>管什么：</em>效应器、路由、schema。</p><p><em>不管什么：</em>循环怎么转（E），窗口里塞什么（C）。</p>"
+      },
+      C: {
+        tag: "H · C",
+        title: "上下文管理",
+        tex: "C:\\ \\text{context manager}",
+        fb: "C: context manager",
+        html: "<p><em>管什么：</em>这一拍进模型窗口的内容。</p><p><em>不管什么：</em>跨会话持久化（S）。C 管窗口，S 管抽屉。</p>"
+      },
+      S: {
+        tag: "H · S",
+        title: "harness 内的状态库",
+        tex: "S:\\ \\text{state store}",
+        fb: "S: state store",
+        html: "<p><em>管什么：</em>跨 turn 持久化、崩溃恢复。</p><p><em>不管什么：</em>git 里整份 H。S 只是 H 里面的抽屉。</p>"
+      },
+      L: {
+        tag: "H · L",
+        title: "生命周期钩子",
+        tex: "L:\\ \\text{lifecycle hooks}",
+        fb: "L: lifecycle hooks",
+        html: "<p><em>管什么：</em>调用前后拦截：鉴权、日志、策略。</p><p><em>不管什么：</em>对外轨迹口（V）。L 是拦截，V 是出口。</p>"
+      },
+      V: {
+        tag: "H · V",
+        title: "评测接口",
+        tex: "V:\\ \\text{evaluation interface}",
+        fb: "V: evaluation interface",
+        html: "<p><em>管什么：</em>轨迹与成功信号的出口。</p><p><em>不管什么：</em>合入 git。Ω 读 V 吐出的流。</p>"
+      }
+    };
+
+    var NOTES = {
+      H: {
+        tag: "Base · Def. 2.1",
+        title: "H 是六个运行时零件",
+        tex: "H=(E,T,C,S,L,V)",
+        fb: "H = (E, T, C, S, L, V)",
+        html: "<p>Survey：agent harness 是封装模型的运行时治理层。悬停上面六个字母看分项。</p><p>Γ 的定义域是 ℋ；git 的每个 commit 载荷一份 H。</p>"
+      },
+      min: {
+        tag: "Base · 边界",
+        title: "什么才叫一份 harness",
+        tex: "\\{E,T\\}\\subseteq H",
+        fb: "{E,T} ⊆ H",
+        html: "<p>必要：至少有 Agent Loop 和工具，否则只是单轮 wrapper。</p><p>充分：六件都到生产级才是 full-stack。缺 V 仍然是 harness，只是外层 Ω 吃不到规范轨迹。</p>"
+      },
+      lts: {
+        tag: "Base · LTS",
+        title: "E 是带标签的转移系统",
+        tex: "E=(Q,\\Sigma,\\delta)",
+        fb: "E = (Q, Σ, δ)",
+        html: "<p>Q 含 idle / observing / invoking-model / dispatching-tool / … / terminated。</p><p>第一层的 R 就是把这条 LTS 跑出一条路径 τ。E 不是 Φ。</p>"
+      },
+      commit: {
+        tag: "Base · git",
+        title: "commit 载荷是整份 H",
+        tex: "\\mathrm{commit}\\Leftrightarrow H",
+        fb: "commit ⇔ H",
+        html: "<p>S 是 H 里面的状态库，不是仓库里的「状态」。ℋ 是 harness 空间，不是 git 的 commit 集合 ℛ。</p>"
+      },
+      model: {
+        tag: "Base · 模型",
+        title: "可靠性由 H 决定",
+        tex: "M\\notin H",
+        fb: "M ∉ H",
+        html: "<p>模型冻结、在 H 之外。转换算子改六个零件，不改权重。这是 Survey 的主主张，也是 evo agent system 的前提。</p>"
+      },
+      R: {
+        tag: "展开 · R",
+        title: "先跑，不写 commit",
+        tex: "\\tau=R(H)",
+        fb: "τ = R(H)",
+        html: "<p>R 展开 E 的 LTS：判题或 sandbox。输出轨迹 τ。验证：R 不写 git，不产出下一份 H。</p>"
+      },
+      Om: {
+        tag: "展开 · Ω",
+        title: "途中 + 结果",
+        tex: "o=\\Omega(R(H))",
+        fb: "o = Ω(R(H))",
+        html: "<p>V 吐流，Ω 收集。验证：Ω 不发明 H⁺，也不合入。没有 o 就不能调用 Φ。</p>"
+      },
+      Phi: {
+        tag: "展开 · Φ",
+        title: "算出下一份 H",
+        tex: "H^{+}=\\Phi(H,o)",
+        fb: "H⁺ = Φ(H, o)",
+        html: "<p>Φ 是 evo，不是 Agent Loop。验证：Φ 不跑用户任务；输入必须是 (H, o)，没有候选 B。</p>"
+      },
+      Gamma: {
+        tag: "合成 · Γ",
+        title: "三个映射的复合",
+        tex: "\\Gamma=\\Phi\\circ(\\mathrm{id},\\Omega\\circ R)",
+        fb: "Γ = Φ ∘ (id, Ω ∘ R)",
+        html: "<p>验证：Γ:ℋ→ℋ，不出现 ref、parent、merge。A→B 要用第二层的 fwd 才能把 Γ(H_A) 钉到 DAG 上。</p>"
+      },
+      fwd: {
+        tag: "验证 · fwd",
+        title: "正向边必须经过 Γ",
+        tex: "H_B=\\Gamma(H_A)\\ \\wedge\\ \\pi(B)=\\{A\\}",
+        fb: "H_B = Γ(H_A) ∧ π(B)={A}",
+        html: "<p>A→B 成立当且仅当内容来自第一层、且 B 的唯一 parent 是 A。</p><p>HEAD 移动是 ref 更新，不是 Γ 的一部分。</p>"
+      },
+      rev: {
+        tag: "验证 · rev",
+        title: "revert 不调用 Γ",
+        tex: "H(\\mathrm{rev}(A,A^{-}))=H_{A^{-}}",
+        fb: "H(rev(A,A⁻)) = H_{A⁻}",
+        html: "<p>内容拷贝祖先，parent 仍是当前 A（append-only）。</p><p>验证：若误写成 H' = Γ(H_A) 就变成 fwd。rev 与 Γ 正交。</p>"
+      },
+      err: {
+        tag: "验证 · err",
+        title: "失败也是历史上的点",
+        tex: "\\mathrm{ok}(A_\\bot)=\\bot",
+        fb: "ok(A⊥) = ⊥",
+        html: "<p>R 或 Φ 失败仍 commit。H 可以停在 H_A，或留下半成品。</p><p>验证：o⊥ 进入下一轮 Ω 的记忆；假装没发生会破坏可观测闭环。</p>"
+      },
+      br: {
+        tag: "验证 · br",
+        title: "branch 只动 ref",
+        tex: "\\mathrm{refs}(\\ell)=A",
+        fb: "refs(ℓ) = A",
+        html: "<p>验证：br 不改任何 H，不跑 R。之后两条 ref 上可以各自 fwd / rev / err。</p>"
+      },
+      merge: {
+        tag: "验证 · merge",
+        title: "多路观测再进 Φ",
+        tex: "H_M=\\Phi(H_{\\ast},\\bigoplus_i o_i)",
+        fb: "H_M = Φ(H_*, ⊕ oᵢ)",
+        html: "<p>μ 不是新的第一层算子，是 Φ 的多元用法：H_* 取一侧基线，oᵢ=Ω(R(H_{Bᵢ}))。</p><p>验证：π(M)={Bᵢ}ₖ，k≥2；若 k=1 则退化为 fwd。Γ 仍是一元的。</p>"
+      }
+    };
+
+    var detail = document.getElementById("detail");
+    var katexReady = false;
+    var currentKey = "Gamma";
+    var currentPart = null;
+
+    function renderTex(el, tex, display) {
+      if (window.katex) {
+        window.katex.render(tex, el, { throwOnError: false, displayMode: !!display });
+      }
+    }
+
+    function rise() {
+      detail.classList.remove("up");
+      void detail.offsetWidth;
+      detail.classList.add("up");
+    }
+
+    function paint(n, animate) {
+      document.getElementById("d-tag").textContent = n.tag;
+      document.getElementById("d-title").textContent = n.title;
+      document.getElementById("d-body").innerHTML = n.html;
+      var slot = document.getElementById("d-eq");
+      if (katexReady && window.katex) renderTex(slot, n.tex, true);
+      else slot.textContent = n.fb;
+      if (animate !== false) rise();
+    }
+
+    function clearOn() {
+      document.querySelectorAll(".line").forEach(function (el) { el.classList.remove("is-on"); });
+      document.querySelectorAll(".part").forEach(function (el) { el.classList.remove("is-on"); });
+    }
+
+    function showNote(key, animate) {
+      currentKey = key;
+      currentPart = null;
+      clearOn();
+      document.querySelectorAll('.line[data-note="' + key + '"]').forEach(function (el) {
+        el.classList.add("is-on");
+      });
+      paint(NOTES[key], animate);
+    }
+
+    function showPart(key, animate) {
+      currentPart = key;
+      currentKey = "H";
+      clearOn();
+      document.querySelectorAll('.part[data-part="' + key + '"]').forEach(function (el) {
+        el.classList.add("is-on");
+      });
+      paint(PARTS[key], animate);
+    }
+
+    function openSheet(id, animate) {
+      document.querySelectorAll(".tab").forEach(function (el) {
+        el.classList.toggle("is-on", el.getAttribute("data-sheet") === id);
+      });
+      document.querySelectorAll(".sheet").forEach(function (el) {
+        el.classList.toggle("is-on", el.id === "sheet-" + id);
+      });
+      if (id === "base") showNote("H", animate);
+      else if (id === "gamma") showNote("Gamma", animate);
+      else showNote("fwd", animate);
+    }
+
+    function typesetLeft() {
+      document.querySelectorAll(".eq").forEach(function (el) {
+        if (!window.katex) return;
+        window.katex.render(el.getAttribute("data-tex"), el, {
+          throwOnError: false,
+          displayMode: true
+        });
+        el.classList.add("visible");
+      });
+      document.querySelectorAll(".fb").forEach(function (el) { el.classList.remove("visible"); });
+    }
+
+    function fallbackLeft() {
+      document.querySelectorAll(".eq").forEach(function (el) { el.classList.remove("visible"); });
+      document.querySelectorAll(".fb").forEach(function (el) { el.classList.add("visible"); });
+    }
+
+    document.querySelectorAll(".tab").forEach(function (el) {
+      el.addEventListener("click", function () { openSheet(el.getAttribute("data-sheet")); });
+    });
+    document.querySelectorAll(".line").forEach(function (el) {
+      var key = el.getAttribute("data-note");
+      el.addEventListener("mouseenter", function () { showNote(key); });
+      el.addEventListener("focus", function () { showNote(key); });
+      el.addEventListener("click", function () { showNote(key); });
+    });
+    document.querySelectorAll(".part").forEach(function (el) {
+      var key = el.getAttribute("data-part");
+      el.addEventListener("mouseenter", function () { showPart(key); });
+      el.addEventListener("focus", function () { showPart(key); });
+      el.addEventListener("click", function () { showPart(key); });
+    });
+
+    openSheet("base", false);
+
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js";
+    s.onload = function () {
+      katexReady = true;
+      typesetLeft();
+      if (currentPart) showPart(currentPart, false);
+      else showNote(currentKey, false);
+    };
+    s.onerror = fallbackLeft;
+    document.head.appendChild(s);
+    setTimeout(function () {
+      if (!window.katex) fallbackLeft();
+    }, 2500);
+  </script>
+</body>
+</html>

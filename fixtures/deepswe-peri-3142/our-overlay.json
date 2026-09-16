@@ -1,0 +1,233 @@
+{
+  "schema": "evo-harness.job-overlay.v1",
+  "source_archive": "deepswe-peri-3142.rar",
+  "notes": [
+    "本文件只补 Harbor job 里没有、但我方记录契约需要的字段。",
+    "不改写 trial result.json，不编造 token/cost/GPU/ATIF。",
+    "pass_at_1 由 verifier_result.rewards.reward 的 0/1 均值导出。",
+    "tool_use_events_unverified 来自 agent_result.metadata.stream_type_hist，原笔记为宽容提取，不能当 n_agent_steps。"
+  ],
+  "filled": {
+    "runner": {
+      "name": "pier",
+      "version": "0.3.1",
+      "from": "jobs/*/lock.json"
+    },
+    "sandbox": {
+      "type": "docker",
+      "location": "local",
+      "from": "jobs/*/config.json environment.type"
+    },
+    "agent": {
+      "name": "peri",
+      "version": "agent-v3.14.2",
+      "import_path": "deep_swe_peri.peri_agent:PeriAgent",
+      "config_agent_name": null,
+      "from": "TrialResult.agent_info；config.agent.name 全为 null，用 agent_info 补"
+    },
+    "model": {
+      "model_name": "deepseek/deepseek-v4-flash",
+      "provider": "deepseek",
+      "name": "deepseek-v4-flash",
+      "endpoint_class": "cloud",
+      "from": "config.agent.model_name 与 agent_info.model_info"
+    },
+    "n": {
+      "full": 113,
+      "fail44": 44
+    },
+    "incomparability": "非 Pier 官方 DeepSWE 榜。执行器是 Pier，harness 是 Peri，不是官方 Pier + mini-swe-agent 协议。",
+    "attestation": {
+      "status": "unsigned"
+    },
+    "job_type": null,
+    "job_type_reason": "单 harness × 单模型，不是 H 型对照，也不是 M 型对照。记为基线 run，待补对照轴后再标 H 或 M。",
+    "fail44_relation": "peri-3142-fail44-v4flash 的 44 题等于 peri-3142-full 中 reward=0 的 44 题。",
+    "trajectory": {
+      "atif_v1_7": false,
+      "available": "agent/peri.txt",
+      "format": "peri stream-json（非 ATIF）"
+    },
+    "fail44_equals_full_reward0": true
+  },
+  "still_missing": [
+    {
+      "field": "hub_org",
+      "need": "公司 Harbor Hub org；个人/离线 job 不能当正式记录"
+    },
+    {
+      "field": "harbor_version",
+      "need": "harbor 包版本；本包只有 pier 0.3.1"
+    },
+    {
+      "field": "dataset.name / version / ref",
+      "need": "钉死 datacurve/deep-swe-1-1 与 ref；本包只有本地 path，task_name 带 datacurve/ 前缀但不能当 Hub ref"
+    },
+    {
+      "field": "job_type H|M",
+      "need": "对照轴；本包未设"
+    },
+    {
+      "field": "endpoint_class COS 档位 id",
+      "need": "COS 背书与选型；本包是云端 API，不是 COS 档"
+    },
+    {
+      "field": "agent_result tokens / cost_usd",
+      "need": "成本与资源相关聚合；本包全 null"
+    },
+    {
+      "field": "n_agent_steps",
+      "need": "步数；本包全 null"
+    },
+    {
+      "field": "trajectory.json ATIF-v1.7",
+      "need": "chat 面板标准轨迹"
+    },
+    {
+      "field": "verifier_environment_mode",
+      "need": "shared|separate；DeepSWE v1.1 常用 separate；本包全 null"
+    },
+    {
+      "field": "GPU / 推理引擎资源消耗",
+      "need": "问题二资源预估；Harbor TrialResult 无此字段，本包 environment.override_gpus 亦为 null"
+    },
+    {
+      "field": "推理引擎名称与版本",
+      "need": "COS 优化目标与基础归因；本包未记录"
+    },
+    {
+      "field": "AOS 编排路径标识",
+      "need": "AOS 背书；本包是 Peri CLI，未经过 AOS 控制台"
+    },
+    {
+      "field": "attestor / 签字",
+      "need": "公开引用；当前 unsigned"
+    },
+    {
+      "field": "请求单 id",
+      "need": "人到系统交接"
+    },
+    {
+      "field": "config.agent.name",
+      "need": "与 agent_info 对照；本包全 null，已从 agent_info 旁路补 peri"
+    }
+  ],
+  "jobs": [
+    {
+      "job_name": "peri-3142-fail44-v4flash",
+      "job_id": "5d8e2b04-4c8c-4506-940e-20543dd18970",
+      "n_total_trials": 44,
+      "n_reward_1": 20,
+      "n_reward_0": 24,
+      "pass_at_1": 0.454545,
+      "pass_at_1_fraction": "20/44",
+      "started_at": "2026-09-14T02:00:02.607148",
+      "finished_at": "2026-09-14T16:13:32.180529",
+      "duration_sec": {
+        "n": 44,
+        "min": 496.621,
+        "p50": 953.076,
+        "mean": 1163.835,
+        "max": 5476.515
+      },
+      "phase_duration_sec": {
+        "environment_setup": {
+          "n": 44,
+          "min": 32.588,
+          "p50": 37.326,
+          "mean": 39.697,
+          "max": 69.861
+        },
+        "agent_setup": {
+          "n": 44,
+          "min": 0.157,
+          "p50": 0.193,
+          "mean": 0.198,
+          "max": 0.247
+        },
+        "agent_execution": {
+          "n": 44,
+          "min": 352.242,
+          "p50": 774.561,
+          "mean": 959.402,
+          "max": 5324.381
+        },
+        "verifier": {
+          "n": 44,
+          "min": 59.685,
+          "p50": 97.03,
+          "mean": 143.417,
+          "max": 742.652
+        }
+      },
+      "tool_use_events_unverified": {
+        "n": 44,
+        "min": 141,
+        "p50": 248,
+        "mean": 278.841,
+        "max": 711
+      },
+      "dataset_path": "/home/hpx/deepswe-peri-3142/tasks-fail44",
+      "trial_source": "tasks-fail44",
+      "task_name_prefix": "datacurve/"
+    },
+    {
+      "job_name": "peri-3142-full",
+      "job_id": "b7757551-4f4f-45d2-9580-2e30aa8a6077",
+      "n_total_trials": 113,
+      "n_reward_1": 69,
+      "n_reward_0": 44,
+      "pass_at_1": 0.610619,
+      "pass_at_1_fraction": "69/113",
+      "started_at": "2026-09-11T10:37:24.869499",
+      "finished_at": "2026-09-12T23:19:13.803925",
+      "duration_sec": {
+        "n": 113,
+        "min": 421.293,
+        "p50": 956.094,
+        "mean": 1169.091,
+        "max": 3767.702
+      },
+      "phase_duration_sec": {
+        "environment_setup": {
+          "n": 113,
+          "min": 32.962,
+          "p50": 59.061,
+          "mean": 95.754,
+          "max": 454.049
+        },
+        "agent_setup": {
+          "n": 113,
+          "min": 0.157,
+          "p50": 0.2,
+          "mean": 0.205,
+          "max": 0.306
+        },
+        "agent_execution": {
+          "n": 113,
+          "min": 284.743,
+          "p50": 743.876,
+          "mean": 922.143,
+          "max": 3062.538
+        },
+        "verifier": {
+          "n": 113,
+          "min": 50.276,
+          "p50": 85.041,
+          "mean": 130.759,
+          "max": 915.379
+        }
+      },
+      "tool_use_events_unverified": {
+        "n": 113,
+        "min": 89,
+        "p50": 254,
+        "mean": 286.867,
+        "max": 853
+      },
+      "dataset_path": "/home/hpx/deepswe-peri-3142/tasks",
+      "trial_source": "tasks",
+      "task_name_prefix": "datacurve/"
+    }
+  ]
+}

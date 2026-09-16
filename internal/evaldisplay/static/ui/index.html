@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>评测展示</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">评测展示</div>
+      <nav class="nav" aria-label="视图">
+        <a href="#/" data-nav="board">榜单</a>
+        <a href="#/compare" data-nav="compare">对照</a>
+      </nav>
+    </header>
+
+    <p id="flash" class="flash" hidden></p>
+    <main id="main"></main>
+
+    <p class="foot">
+      一行一个 <code>job_id</code>，不混榜。用量五字段始终列出；标「未报告」的 0 表示源未给出，不是测得的零消耗。
+      v1 不提供 peri.txt / ATIF 会话查看。
+      管理后台：<a href="/admin/">/admin/</a>
+    </p>
+  </div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

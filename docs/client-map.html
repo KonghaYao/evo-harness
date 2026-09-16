@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Evo Agent System · 系统关系图</title>
+  <style>
+    :root {
+      --bg: #f1eee7;
+      --ink: #1b1916;
+      --muted: #5f5a52;
+      --faint: #8a8478;
+      --rule: #d8d2c6;
+      --panel: #fffcf7;
+      --accent: #2f4a43;
+      --soft: rgba(47, 74, 67, 0.1);
+      --wire: #9aa79f;
+      --on: #2f4a43;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
+    }
+    .poster {
+      height: 100dvh;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 18px 28px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    header {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: clamp(1.15rem, 2.4vh, 1.55rem);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      font-family: "Iowan Old Style", Palatino, "Songti SC", serif;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .board {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      background: var(--panel);
+      border: 1px solid var(--rule);
+      border-radius: 16px;
+      padding: 16px 18px 12px;
+      display: grid;
+      grid-template-rows: auto auto auto auto auto;
+      gap: 0;
+    }
+    .band {
+      display: grid;
+      align-items: stretch;
+      min-height: 0;
+    }
+    .b0 { grid-template-columns: 1fr; justify-items: center; }
+    .b1 { grid-template-columns: 1fr; }
+    .b2 { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .b3 { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .b4 { grid-template-columns: 1fr; }
+    .flow {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: clamp(18px, 3.2vh, 28px);
+      color: var(--wire);
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .flow span { padding: 0 10px; }
+    .node {
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: var(--bg);
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      color: inherit;
+      font: inherit;
+      transition: border-color 0.2s, background 0.2s, opacity 0.2s;
+    }
+    .node:hover, .node:focus-visible, .node.is-on {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--soft);
+    }
+    .board.is-dim .node:not(.is-on):not(.is-rel) { opacity: 0.38; }
+    .k {
+      display: block;
+      font-size: 0.62rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin-bottom: 4px;
+    }
+    .t {
+      display: block;
+      font-size: clamp(0.92rem, 1.9vh, 1.08rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .d {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: clamp(0.72rem, 1.45vh, 0.82rem);
+      line-height: 1.35;
+    }
+    .harness {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .six {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .six .node { padding: 8px 6px; text-align: center; }
+    .six .t { font-style: italic; font-family: Palatino, "Iowan Old Style", serif; }
+    .gitrow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .caption {
+      flex: 0 0 auto;
+      min-height: 72px;
+      border-top: 1px solid var(--rule);
+      padding-top: 10px;
+    }
+    .caption .who {
+      margin: 0 0 4px;
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .caption h2 {
+      margin: 0 0 4px;
+      font-size: 1.02rem;
+      font-weight: 600;
+      font-family: "Iowan Old Style", Palatino, "Songti SC", serif;
+    }
+    .caption p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    @media (max-width: 820px) {
+      .harness { grid-template-columns: 1fr; }
+      .six { grid-template-columns: repeat(3, 1fr); }
+      header { flex-direction: column; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="poster">
+    <header>
+      <h1>Evo Agent System</h1>
+      <p>一张图看清：谁干活、谁观察、谁改外壳、谁决定算不算进化成功</p>
+    </header>
+
+    <div class="board" id="board">
+      <div class="band b0">
+        <button class="node" type="button" data-id="model" style="max-width: 420px;">
+          <span class="k">不进化</span>
+          <span class="t">模型 · 冻结</span>
+          <span class="d">能力固定。系统不靠改权重变强。</span>
+        </button>
+      </div>
+      <div class="flow"><span>被外壳调用，不进入 git</span></div>
+
+      <div class="band b1">
+        <div class="harness">
+          <button class="node" type="button" data-id="h">
+            <span class="k">Base · 干活的外壳</span>
+            <span class="t">Harness H</span>
+            <span class="d">一份可版本化的 Agent 运行时。git 里存的就是它。</span>
+          </button>
+          <div class="six">
+            <button class="node" type="button" data-id="E"><span class="k">E</span><span class="t">循环</span><span class="d">看→想→动手</span></button>
+            <button class="node" type="button" data-id="T"><span class="k">T</span><span class="t">工具</span><span class="d">能调用什么</span></button>
+            <button class="node" type="button" data-id="C"><span class="k">C</span><span class="t">上下文</span><span class="d">窗口里塞什么</span></button>
+            <button class="node" type="button" data-id="S"><span class="k">S</span><span class="t">记忆</span><span class="d">跨轮怎么记</span></button>
+            <button class="node" type="button" data-id="L"><span class="k">L</span><span class="t">钩子</span><span class="d">权限与审计</span></button>
+            <button class="node" type="button" data-id="V"><span class="k">V</span><span class="t">出口</span><span class="d">轨迹怎么往外吐</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="flow"><span>带着外壳去跑任务</span></div>
+
+      <div class="band b2">
+        <button class="node" type="button" data-id="r">
+          <span class="k">第一层 · 跑</span>
+          <span class="t">Runtime · 判题 / sandbox</span>
+          <span class="d">真正执行用户任务。失败可以停，但不假装没发生过。</span>
+        </button>
+        <button class="node" type="button" data-id="o">
+          <span class="k">第一层 · 看</span>
+          <span class="t">观测 · 途中 + 结果</span>
+          <span class="d">从出口接过过程。拆成「用来进化的分数」和「封存的期末考试」。</span>
+        </button>
+      </div>
+      <div class="flow"><span>提出下一版　｜　同时独立打分</span></div>
+
+      <div class="band b3">
+        <button class="node" type="button" data-id="g">
+          <span class="k">第一层 · 改</span>
+          <span class="t">转换算子 · 提出下一份外壳</span>
+          <span class="d">只根据当前外壳和观测，算出下一版。不算「已经变好」。不写历史。</span>
+        </button>
+        <button class="node" type="button" data-id="j">
+          <span class="k">评判 · 算不算成功</span>
+          <span class="t">三道门：合法 · 不丢已解决 · 搜索分不降</span>
+          <span class="d">期末考试不参与选择，只用来事后看有没有泛化。</span>
+        </button>
+      </div>
+      <div class="flow"><span>过关才记成一次成功进化</span></div>
+
+      <div class="band b4">
+        <div>
+          <button class="node" type="button" data-id="git" style="margin-bottom: 8px;">
+            <span class="k">第二层 · 历史</span>
+            <span class="t">Git · 外壳的版本仓库</span>
+            <span class="d">每个提交是一份外壳。可以前进、撤回、开分支、再合并。不是一条直线。</span>
+          </button>
+          <div class="gitrow">
+            <button class="node" type="button" data-id="fwd"><span class="k">fwd</span><span class="t">前进</span><span class="d">过关后写入下一版</span></button>
+            <button class="node" type="button" data-id="rev"><span class="k">rev</span><span class="t">撤回</span><span class="d">回到以前的外壳，不改写历史</span></button>
+            <button class="node" type="button" data-id="err"><span class="k">err</span><span class="t">失败也落盘</span><span class="d">跑砸了也留下记录</span></button>
+            <button class="node" type="button" data-id="merge"><span class="k">merge</span><span class="t">分支合并</span><span class="d">多条线合成一份外壳</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="caption" id="cap">
+      <p class="who" id="cap-who">关系</p>
+      <h2 id="cap-title">点图上任意一块</h2>
+      <p id="cap-body">高亮的是和它直接相连的部分。整张图从下往上读：历史记下外壳；评判决定哪一次算成功；转换算子只负责提出下一版；真正干活的是 Runtime 里的 Harness。</p>
+    </div>
+  </div>
+
+  <script>
+    var COPY = {
+      model: {
+        who: "模型 ↔ Harness",
+        title: "模型被外壳调用，自己不进化",
+        body: "客户任务由 Harness 调度模型去完成。进化改的是外壳（工具、循环、记忆…），不是改模型参数。所以图顶是冻结的。",
+        rel: ["h", "E", "r"]
+      },
+      h: {
+        who: "Harness ↔ 全体",
+        title: "外壳是系统的中心对象",
+        body: "六个零件组成一份可版本化的 Agent 运行时。上面接着模型，下面拿去跑任务；观测从它的出口出来；下一版还是一份外壳；git 存的也是它。",
+        rel: ["model", "E", "T", "C", "S", "L", "V", "r", "g", "git"]
+      },
+      E: {
+        who: "E ↔ T / C / S",
+        title: "循环是调度者",
+        body: "Agent Loop 负责看环境、想、动手。它调用工具、决定窗口内容、读写记忆。它不是进化引擎。",
+        rel: ["h", "T", "C", "S", "r"]
+      },
+      T: { who: "T ↔ E / Runtime", title: "工具是手", body: "循环要动手，必须经过工具清单。Runtime 在沙箱或判题里真正执行这些调用。", rel: ["h", "E", "r"] },
+      C: { who: "C ↔ E", title: "上下文是这一拍看见的世界", body: "决定哪些信息进入模型窗口。和记忆不同：窗口是当下，记忆是抽屉。", rel: ["h", "E", "S"] },
+      S: { who: "S ↔ E", title: "记忆是外壳里的抽屉", body: "跨轮持久化。不要和 git 混淆：git 存整份外壳，S 只是外壳内部的状态。", rel: ["h", "E", "git"] },
+      L: { who: "L ↔ 全体运行", title: "钩子拦在每次动作前后", body: "权限、审计、策略。它不对外打分；打分走出口 V。", rel: ["h", "V", "r"] },
+      V: {
+        who: "V ↔ 观测",
+        title: "出口把过程交给观测",
+        body: "Harness 自己吐出轨迹和成功信号。观测层只消费这些，不再另外偷窥一遍。",
+        rel: ["h", "r", "o"]
+      },
+      r: {
+        who: "Runtime ↔ H / 观测",
+        title: "只有这里真正干活",
+        body: "判题或 sandbox 里跑当前外壳。产出过程交给观测。它不改外壳、不写 git。跑失败则进入「失败也落盘」。",
+        rel: ["h", "E", "V", "o", "err"]
+      },
+      o: {
+        who: "观测 ↔ 提案 / 评判",
+        title: "一份过程，两条用途",
+        body: "途中+结果拆开：给进化看的搜索分，和封存的期末考试。提案只许用前者；期末考试不能用来挑选下一版。",
+        rel: ["V", "r", "g", "j"]
+      },
+      g: {
+        who: "转换算子 ↔ H / 观测 / 评判",
+        title: "提出下一版，不等于已经变好",
+        body: "用当前外壳和观测算出下一份外壳。不写历史、不打分。变好与否交给右边的三道门。",
+        rel: ["h", "o", "j", "fwd"]
+      },
+      j: {
+        who: "评判 ↔ 提案 / git",
+        title: "三道门决定算不算成功进化",
+        body: "合法外壳；已解决的任务不能丢；用来进化的分数不能降。过关才能前进写入 git。期末考试只做事后报告。",
+        rel: ["o", "g", "fwd"]
+      },
+      git: {
+        who: "Git ↔ 外壳 / 评判",
+        title: "历史是仓库，不是一条线",
+        body: "每个提交承载一份外壳。前进要过评判；撤回不改写过去；失败也留下点；多条线可以合并。",
+        rel: ["h", "fwd", "rev", "err", "merge"]
+      },
+      fwd: {
+        who: "前进 ↔ 提案 + 评判",
+        title: "过关后才记成功的一版",
+        body: "必须同时满足：内容来自转换算子，并且过了三道门。缺任何一条，都不算成功进化。",
+        rel: ["g", "j", "git"]
+      },
+      rev: {
+        who: "撤回 ↔ Git",
+        title: "回到旧外壳，历史仍在",
+        body: "新建一个提交，内容等于以前某版。不调用转换算子。客户仍能看见中间走过的路。",
+        rel: ["git", "h"]
+      },
+      err: {
+        who: "失败落盘 ↔ Runtime",
+        title: "跑砸了也要留下痕迹",
+        body: "否则下一轮看不见这次失败。观测闭环要求：没有「假装没发生」。",
+        rel: ["r", "o", "git"]
+      },
+      merge: {
+        who: "合并 ↔ Git / 外壳",
+        title: "多条实验线合成一份外壳",
+        body: "用已经记下的观测来合成，而不是把旧任务再跑一遍。历史变成图，而不是一条链。",
+        rel: ["git", "o", "h"]
+      }
+    };
+
+    var board = document.getElementById("board");
+    var nodes = [].slice.call(document.querySelectorAll(".node"));
+    var capWho = document.getElementById("cap-who");
+    var capTitle = document.getElementById("cap-title");
+    var capBody = document.getElementById("cap-body");
+
+    function show(id) {
+      var c = COPY[id];
+      if (!c) return;
+      board.classList.add("is-dim");
+      nodes.forEach(function (el) {
+        var k = el.getAttribute("data-id");
+        el.classList.toggle("is-on", k === id);
+        el.classList.toggle("is-rel", c.rel.indexOf(k) !== -1);
+      });
+      capWho.textContent = c.who;
+      capTitle.textContent = c.title;
+      capBody.textContent = c.body;
+    }
+
+    function reset() {
+      board.classList.remove("is-dim");
+      nodes.forEach(function (el) { el.classList.remove("is-on", "is-rel"); });
+      capWho.textContent = "关系";
+      capTitle.textContent = "点图上任意一块";
+      capBody.textContent = "高亮的是和它直接相连的部分。整张图从上往下读：冻结模型 → 外壳干活 → 跑任务并观察 → 提出下一版并评判 → 过关才写入 git。";
+    }
+
+    nodes.forEach(function (el) {
+      var id = el.getAttribute("data-id");
+      el.addEventListener("mouseenter", function () { show(id); });
+      el.addEventListener("focus", function () { show(id); });
+      el.addEventListener("click", function () { show(id); });
+    });
+    board.addEventListener("mouseleave", reset);
+    reset();
+  </script>
+</body>
+</html>

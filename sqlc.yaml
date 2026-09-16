@@ -1,0 +1,12 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    schema: "migrations"
+    queries: "internal/evaldisplay/store/queries"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "internal/evaldisplay/store/sqlcgen"
+        sql_package: "database/sql"
+        emit_json_tags: true
+        emit_empty_slices: true

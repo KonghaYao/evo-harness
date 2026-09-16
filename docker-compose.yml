@@ -1,0 +1,87 @@
+# 默认：文件系统作业树 + 命名卷持久化 SQLite / S3 目录。
+# 前台 GET /v1 公开，不设置 viewer 令牌。
+# 生产请覆盖 ADMIN / ANON / JWT 三项，勿沿用下方开发默认值。
+#
+# 可选 MinIO：
+#   EVAL_DISPLAY_S3_BACKEND=aws \
+#   EVAL_DISPLAY_S3_ENDPOINT=http://minio:9000 \
+#   EVAL_DISPLAY_S3_BUCKET=results \
+#   EVAL_DISPLAY_S3_ACCESS_KEY=minio \
+#   EVAL_DISPLAY_S3_SECRET_KEY=minio-dev-secret \
+#   EVAL_DISPLAY_S3_PATH_STYLE=true \
+#   docker compose --profile minio up --build
+
+name: evo-harness
+
+services:
+  eval-display:
+    build: .
+    image: eval-display:local
+    ports:
+      - "8080:8080"
+    environment:
+      EVAL_DISPLAY_ADDR: ":8080"
+      EVAL_DISPLAY_SQLITE_PATH: /data/eval-display.sqlite
+      EVAL_DISPLAY_S3_DIR: /data/s3
+      EVAL_DISPLAY_ADMIN_TOKEN: ${EVAL_DISPLAY_ADMIN_TOKEN:-dev-admin-token}
+      EVAL_DISPLAY_ANON_KEY: ${EVAL_DISPLAY_ANON_KEY:-dev-anon}
+      EVAL_DISPLAY_JWT_SECRET: ${EVAL_DISPLAY_JWT_SECRET:-dev-jwt-secret}
+      EVAL_DISPLAY_TOKEN: ${EVAL_DISPLAY_TOKEN:-dev-token}
+      EVAL_DISPLAY_S3_BACKEND: ${EVAL_DISPLAY_S3_BACKEND:-fs}
+      EVAL_DISPLAY_S3_ENDPOINT: ${EVAL_DISPLAY_S3_ENDPOINT:-}
+      EVAL_DISPLAY_S3_BUCKET: ${EVAL_DISPLAY_S3_BUCKET:-results}
+      EVAL_DISPLAY_S3_REGION: ${EVAL_DISPLAY_S3_REGION:-us-east-1}
+      EVAL_DISPLAY_S3_ACCESS_KEY: ${EVAL_DISPLAY_S3_ACCESS_KEY:-}
+      EVAL_DISPLAY_S3_SECRET_KEY: ${EVAL_DISPLAY_S3_SECRET_KEY:-}
+      EVAL_DISPLAY_S3_PATH_STYLE: ${EVAL_DISPLAY_S3_PATH_STYLE:-true}
+    volumes:
+      - eval-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      minio:
+        condition: service_healthy
+        required: false
+    restart: unless-stopped
+
+  minio:
+    profiles: ["minio"]
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio-dev-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+    restart: unless-stopped
+
+  minio-init:
+    profiles: ["minio"]
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: on-failure
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mc alias set local http://minio:9000 minio minio-dev-secret &&
+        mc mb --ignore-existing local/results
+
+volumes:
+  eval-data:
+  minio-data:

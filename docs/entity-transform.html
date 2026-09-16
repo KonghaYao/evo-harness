@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Evo Agent System · 状态怎么从 1 到 2</title>
+  <style>
+    :root {
+      --bg: #0f1210;
+      --panel: #161a17;
+      --ink: #efe6d4;
+      --muted: #a39882;
+      --faint: #6e6758;
+      --rule: #2c322e;
+      --gold: #c4a574;
+      --gold-dim: #8a7a5c;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100dvh;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      color-scheme: dark;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Avenir Next", sans-serif;
+    }
+    .page {
+      height: 100dvh;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 10px 18px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    header {
+      flex: 0 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(1.02rem, 2.1vh, 1.38rem);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      font-family: "Songti SC", "Iowan Old Style", Palatino, serif;
+    }
+    header .meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-align: right;
+      max-width: 42em;
+    }
+    .frame {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--rule);
+      border-radius: 14px;
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .frame svg {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+    }
+    .frame.is-dim .node:not(.is-on):not(.is-rel) { opacity: 0.28; }
+    .frame.is-dim .cluster { opacity: 0.5; }
+    .frame.is-dim .edgeLabel:not(.is-on) { opacity: 0.18; }
+    .frame.is-dim .flowchart-link { opacity: 0.14; }
+    .node { cursor: pointer; }
+    .node.is-on rect, .node.is-rel rect,
+    .node.is-on polygon, .node.is-rel polygon {
+      stroke: var(--gold) !important;
+      stroke-width: 2.1px !important;
+      filter: drop-shadow(0 0 6px rgba(196, 165, 116, 0.35));
+    }
+    .edgeLabel { cursor: pointer; }
+    .edgeLabel.is-on { filter: brightness(1.35); }
+    .cap { flex: 0 0 auto; min-height: 3.4em; }
+    .cap .k {
+      margin: 0;
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      color: var(--gold);
+    }
+    .cap h2 {
+      margin: 1px 0 2px;
+      font-size: clamp(0.92rem, 1.8vh, 1.05rem);
+      font-weight: 600;
+      font-family: "Songti SC", "Iowan Old Style", Palatino, serif;
+    }
+    .cap p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+    footer {
+      flex: 0 0 auto;
+      margin: 0;
+      color: var(--faint);
+      font-size: 0.68rem;
+    }
+    .err {
+      margin: 0;
+      padding: 18px;
+      color: #e8b4a0;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>状态怎么从 1 到 2 <span style="color:var(--gold-dim);font-weight:500;">(Evo Agent System)</span></h1>
+      <p class="meta">模型冻结不动。进化的是 Harness。Agent Loop 在外壳里干活，不是进化模块。</p>
+    </header>
+    <div class="frame" id="frame" aria-label="四个模块与两个状态">载入图…</div>
+    <div class="cap">
+      <p class="k" id="ck">四个模块</p>
+      <h2 id="ct">谁变成谁</h2>
+      <p id="cb">存储里取出 state1；观测记下过程；评测看算不算改进；进化模块写出下一版，写回 Git 成为 state2。</p>
+    </div>
+    <footer>存储管现状和历史　·　观测只管看　·　评测只管判　·　进化才改下一版外壳　·　悬停看这一块干什么</footer>
+  </div>
+
+  <script type="text/plain" id="mmd">
+flowchart TB
+
+subgraph STORE["存储状态模块"]
+  direction LR
+  frozen["冻结的模型"]:::frozen
+  subgraph HBOX["Harness 六个零件"]
+    direction LR
+    E["Agent Loop"]:::part
+    T["工具"]:::part
+    C["上下文"]:::part
+    Smem["会话记忆"]:::part
+    L["生命周期钩子"]:::part
+    V["评测接口"]:::part
+  end
+  subgraph GIT["Git 树"]
+    direction LR
+    s1["state1"]:::st
+    s2["state2"]:::st
+    errc["错误提交"]:::hist
+    branch["分支"]:::hist
+    s1 -->|正向合入| s2
+    s2 -.->|回退| s1
+    s1 -.->|失败也留下| errc
+    s1 -.->|开分支| branch
+    branch -.->|合并| s2
+  end
+end
+
+subgraph WORK["从 state1 到 state2"]
+  direction LR
+  subgraph OBS["观测模块"]
+    direction LR
+    run["执行一次任务"]:::work
+    rec["过程 + 结果"]:::work
+    run --> rec
+  end
+  subgraph EVAL["评测模块"]
+    judge["是否算改进"]:::work
+  end
+  subgraph EVO["进化模块"]
+    propose["提出下一版 Harness"]:::work
+  end
+  rec -->|交给评测| judge
+  judge -->|交给进化| propose
+end
+
+s1 -->|取出当前提交| run
+propose -->|写回新 commit| s2
+s1 ~~~ run
+
+classDef frozen fill:#1a1814,stroke:#8a7a5c,color:#e6dcc8
+classDef part fill:#1c211e,stroke:#c4a574,color:#efe6d4
+classDef st fill:#243028,stroke:#c4a574,color:#efe6d4
+classDef hist fill:#141a18,stroke:#7a9a88,color:#d4e4dc
+classDef work fill:#1c211e,stroke:#c4a574,color:#efe6d4
+style STORE fill:#141816,stroke:#3d4540,color:#c4a574
+style HBOX fill:#121410,stroke:#4a4034,color:#c4a574
+style GIT fill:#101412,stroke:#3a4440,color:#c4a574
+style WORK fill:#161410,stroke:#3a3630,color:#8a7a5c
+style OBS fill:#141816,stroke:#3d4540,color:#c4a574
+style EVAL fill:#161410,stroke:#4a4034,color:#c4a574
+style EVO fill:#101412,stroke:#3a4440,color:#c4a574
+  </script>
+
+  <script>
+    var SRC = document.getElementById("mmd").textContent.trim();
+    var frame = document.getElementById("frame");
+
+    var INFO = {
+      frozen: ["不进化", "冻结的模型", "能力固定。跑任务会用到它，但系统不靠改模型变强。进化改的是 Harness。"],
+      E: ["Harness 零件", "Agent Loop", "智能体怎么一步步看、想、动手。它在外壳里干活，不是进化模块。"],
+      T: ["Harness 零件", "工具", "能调用什么。Agent Loop 要动手，走这里。"],
+      C: ["Harness 零件", "上下文", "这一拍窗口里塞什么。和会话记忆不同：窗口是当下。"],
+      Smem: ["Harness 零件", "会话记忆", "Harness 内部的跨轮记忆。不是下面那个「存储状态模块」，也不是 Git。"],
+      L: ["Harness 零件", "生命周期钩子", "动作前后的权限、审计、策略。"],
+      V: ["Harness 零件", "评测接口", "过程怎么往外吐。观测模块只从这里接，不再另外偷看一遍。"],
+      s1: ["存储", "state1", "Git 里的当前提交。装着当时那份完整 Harness。正向时从这里取出去跑。"],
+      s2: ["存储", "state2", "成功向前一步之后的新提交。不是候选人，就是下一份已存状态。下一轮它就当 state1。"],
+      errc: ["Git", "错误提交", "Runtime 或提出下一版失败了，也要落在树上。不能假装没发生。"],
+      branch: ["Git", "分支", "树上可以分叉，不是一群候选人。合并时用已存观察，不再重跑 Runtime。"],
+      run: ["执行", "执行一次任务", "用冻结的模型和环境，跑 state1 里的 Harness。这是观测的入口，不是第五个大模块。"],
+      rec: ["观测模块", "过程 + 结果", "记下途中发生了什么，以及结果。拆成可打分部分和封存的过程记录。观测不改 Harness。"],
+      judge: ["评测模块", "是否算改进", "看三件事：工作是否正常、旧能力是否还在、是不是真有改进。评测自己不写下一版 Harness。"],
+      propose: ["进化模块", "提出下一版 Harness", "根据当前外壳和观察，写出下一版。接受了就在 Git 里写下 state2。Agent Loop 不在这里。"],
+      take: ["主路径", "取出当前提交", "存储把 state1 交给执行一次任务。"],
+      toEval: ["主路径", "交给评测", "观察记录送进评测模块。"],
+      toEvo: ["主路径", "交给进化", "评测说了算不算改进，进化模块才动手改外壳。"],
+      write: ["主路径", "写回新 commit", "下一版 Harness 写进存储，成为 state2。"],
+      fwd: ["Git", "正向合入", "过关之后，state1 的下一份状态落成 state2。只有这一步算向前进化。"],
+      rev: ["Git", "回退", "回到更早的提交。不走提出下一版那条路。"],
+      errEdge: ["Git", "失败也留下", "失败写成错误提交，仍在存储里。"],
+      brEdge: ["Git", "开分支", "从当前提交分出另一条线。"],
+      merge: ["Git", "合并", "几条线合回树上。用已经存下的观察，不再跑一遍 Runtime。"]
+    };
+
+    var REL = {
+      frozen: ["run", "s1"],
+      E: ["T", "C", "Smem", "s1", "run"],
+      T: ["E", "run"],
+      C: ["E", "Smem"],
+      Smem: ["E", "C"],
+      L: ["E", "run"],
+      V: ["rec", "s1"],
+      s1: ["run", "s2", "HBOX", "E", "T", "C", "Smem", "L", "V", "errc", "branch", "take", "fwd"],
+      s2: ["s1", "propose", "write", "fwd", "rev", "branch", "merge"],
+      errc: ["s1", "errEdge", "run"],
+      branch: ["s1", "s2", "brEdge", "merge"],
+      run: ["s1", "rec", "take", "frozen"],
+      rec: ["run", "judge", "toEval", "V"],
+      judge: ["rec", "propose", "toEvo"],
+      propose: ["judge", "s2", "write", "E"],
+      take: ["s1", "run"],
+      toEval: ["rec", "judge"],
+      toEvo: ["judge", "propose"],
+      write: ["propose", "s2"],
+      fwd: ["s1", "s2"],
+      rev: ["s2", "s1"],
+      errEdge: ["s1", "errc"],
+      brEdge: ["s1", "branch"],
+      merge: ["branch", "s2"]
+    };
+
+    var EDGE_KEY = {
+      "正向合入": "fwd",
+      "回退": "rev",
+      "失败也留下": "errEdge",
+      "开分支": "brEdge",
+      "合并": "merge",
+      "取出当前提交": "take",
+      "交给评测": "toEval",
+      "交给进化": "toEvo",
+      "写回新 commit": "write"
+    };
+
+    var NODE_LABEL = {
+      "冻结的模型": "frozen",
+      "Agent Loop": "E",
+      "工具": "T",
+      "上下文": "C",
+      "会话记忆": "Smem",
+      "生命周期钩子": "L",
+      "评测接口": "V",
+      "state1": "s1",
+      "state2": "s2",
+      "错误提交": "errc",
+      "分支": "branch",
+      "执行一次任务": "run",
+      "过程 + 结果": "rec",
+      "过程+ 结果": "rec",
+      "过程+结果": "rec",
+      "是否算改进": "judge",
+      "提出下一版 Harness": "propose",
+      "提出下一版Harness": "propose"
+    };
+
+    var DEFAULT_CAP = {
+      k: "四个模块",
+      t: "谁变成谁",
+      b: "存储里取出 state1；观测记下过程；评测看算不算改进；进化模块写出下一版，写回 Git 成为 state2。"
+    };
+
+    function showCap(key) {
+      var info = INFO[key];
+      if (!info) return;
+      document.getElementById("ck").textContent = info[0];
+      document.getElementById("ct").textContent = info[1];
+      document.getElementById("cb").textContent = info[2];
+    }
+
+    function clearCap() {
+      frame.classList.remove("is-dim");
+      frame.querySelectorAll(".is-on, .is-rel").forEach(function (el) {
+        el.classList.remove("is-on", "is-rel");
+      });
+      document.getElementById("ck").textContent = DEFAULT_CAP.k;
+      document.getElementById("ct").textContent = DEFAULT_CAP.t;
+      document.getElementById("cb").textContent = DEFAULT_CAP.b;
+    }
+
+    function nodeIdOf(g) {
+      var id = g.getAttribute("id") || "";
+      var m = id.match(/flowchart-([A-Za-z][A-Za-z0-9]*)-/);
+      if (m && INFO[m[1]]) return m[1];
+      var raw = (g.textContent || "").replace(/\s+/g, " ").trim();
+      var tight = raw.replace(/\s+/g, "");
+      return NODE_LABEL[raw] || NODE_LABEL[tight] || null;
+    }
+
+    function edgeKeyOf(el) {
+      return EDGE_KEY[(el.textContent || "").replace(/\s+/g, " ").trim()] || null;
+    }
+
+    function paint(key) {
+      if (!key || !INFO[key]) return;
+      var rel = REL[key] || [];
+      frame.classList.add("is-dim");
+      frame.querySelectorAll(".node").forEach(function (el) {
+        var id = nodeIdOf(el);
+        el.classList.toggle("is-on", id === key);
+        el.classList.toggle("is-rel", rel.indexOf(id) !== -1);
+      });
+      frame.querySelectorAll(".edgeLabel").forEach(function (el) {
+        var ek = edgeKeyOf(el);
+        el.classList.toggle("is-on", ek === key || rel.indexOf(ek) !== -1);
+      });
+      showCap(key);
+    }
+
+    function bindGraph() {
+      frame.querySelectorAll(".node").forEach(function (el) {
+        el.addEventListener("mouseenter", function () { paint(nodeIdOf(el)); });
+        el.addEventListener("click", function () { paint(nodeIdOf(el)); });
+      });
+      frame.querySelectorAll(".edgeLabel").forEach(function (el) {
+        el.addEventListener("mouseenter", function () { paint(edgeKeyOf(el)); });
+        el.addEventListener("click", function () { paint(edgeKeyOf(el)); });
+      });
+      frame.addEventListener("mouseleave", clearCap);
+    }
+
+    function fitSvg(svg) {
+      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      svg.removeAttribute("width");
+      svg.removeAttribute("height");
+      svg.style.width = "100%";
+      svg.style.height = "100%";
+    }
+
+    function boot(mermaid, useElk) {
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: "base",
+        securityLevel: "strict",
+        darkMode: true,
+        themeVariables: {
+          darkMode: true,
+          background: "#0f1210",
+          primaryColor: "#1c211e",
+          primaryTextColor: "#efe6d4",
+          primaryBorderColor: "#c4a574",
+          secondaryColor: "#181c19",
+          tertiaryColor: "#141816",
+          lineColor: "#8a8070",
+          clusterBkg: "#141816",
+          clusterBorder: "#3d4540",
+          titleColor: "#c4a574",
+          edgeLabelBackground: "#161a17",
+          nodeTextColor: "#efe6d4",
+          mainBkg: "#1c211e",
+          textColor: "#efe6d4",
+          fontFamily: "PingFang SC, Hiragino Sans GB, Noto Sans SC, sans-serif",
+          fontSize: "14px"
+        },
+        layout: useElk ? "elk" : "dagre",
+        elk: { mergeEdges: false, nodePlacementStrategy: "NETWORK_SIMPLEX" },
+        flowchart: {
+          htmlLabels: true,
+          curve: "linear",
+          padding: 8,
+          nodeSpacing: 22,
+          rankSpacing: 28,
+          diagramPadding: 8,
+          useMaxWidth: false
+        }
+      });
+      return mermaid.parse(SRC).then(function () {
+        return mermaid.render("evoState12", SRC);
+      }).then(function (out) {
+        frame.innerHTML = out.svg;
+        var svg = frame.querySelector("svg");
+        if (svg) fitSvg(svg);
+        bindGraph();
+        clearCap();
+      });
+    }
+
+    function fail(err) {
+      var pre = document.createElement("p");
+      pre.className = "err";
+      pre.textContent = "图没有画出来\n" + (err && err.str ? err.str : (err && err.message ? err.message : err));
+      frame.innerHTML = "";
+      frame.appendChild(pre);
+    }
+
+    function loadScript(src) {
+      return new Promise(function (resolve, reject) {
+        var s = document.createElement("script");
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    Promise.all([
+      import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"),
+      import("https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk/dist/mermaid-layout-elk.esm.min.mjs")
+    ]).then(function (mods) {
+      var mermaid = mods[0].default;
+      if (typeof mermaid.registerLayoutLoaders === "function") mermaid.registerLayoutLoaders(mods[1].default);
+      return boot(mermaid, false);
+    }).catch(function () {
+      return loadScript("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js")
+        .catch(function () { return loadScript("https://unpkg.com/mermaid@11/dist/mermaid.min.js"); })
+        .then(function () { return boot(window.mermaid, false); });
+    }).catch(fail);
+  </script>
+</body>
+</html>
