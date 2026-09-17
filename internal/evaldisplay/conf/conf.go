@@ -32,7 +32,7 @@ type Config struct {
 	OrgName        string
 	MaxUploadBytes int64
 
-	S3Backend   string // memory | fs | aws
+	S3Backend   string // memory | fs | aws | rustfs
 	S3Dir       string
 	S3Endpoint  string
 	S3Bucket    string

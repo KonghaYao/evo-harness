@@ -22,8 +22,8 @@ import (
 
 var ErrNotFound = errors.New("s3 object not found")
 
-// ObjectStore is the job-tree blob store. Production uses AWS/MinIO;
-// tests may use the memory or filesystem implementations.
+// ObjectStore is the job-tree blob store. Production uses AWS S3 or an
+// S3-compatible endpoint (RustFS); tests may use memory or filesystem fakes.
 type ObjectStore interface {
 	Put(ctx context.Context, key string, body io.Reader, size int64, contentType string) error
 	Get(ctx context.Context, key string) (io.ReadCloser, error)
@@ -40,7 +40,7 @@ func New(ctx context.Context, cfg conf.Config) (ObjectStore, error) {
 			return nil, fmt.Errorf("EVAL_DISPLAY_S3_DIR is required for fs backend")
 		}
 		return NewFS(cfg.S3Dir)
-	case "aws", "s3", "minio":
+	case "aws", "s3", "rustfs":
 		return NewAWS(ctx, cfg)
 	default:
 		return nil, fmt.Errorf("unknown EVAL_DISPLAY_S3_BACKEND %q", cfg.S3Backend)
@@ -241,7 +241,13 @@ func NewAWS(ctx context.Context, cfg conf.Config) (*AWS, error) {
 	client := awss3.NewFromConfig(awsCfg, func(o *awss3.Options) {
 		if cfg.S3Endpoint != "" {
 			o.BaseEndpoint = aws.String(cfg.S3Endpoint)
+			// AWS SDK v2 s3 ≥1.74.1 sends CRC32 by default. Custom endpoints
+			// (RustFS and other S3-compatible APIs) are safer with checksums
+			// only when the operation requires them.
+			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+			o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
 		}
+		// RustFS defaults to path-style; virtual-host needs RUSTFS_SERVER_DOMAINS.
 		o.UsePathStyle = cfg.S3PathStyle
 	})
 	return &AWS{client: client, bucket: cfg.S3Bucket, sse: cfg.S3SSE}, nil

@@ -1,6 +1,6 @@
 # 评测展示服务设计（Harbor 上传兼容 + S3 + SQLite + 读模型）
 
-本文只设计评测系统第 1 层：**评测展示服务 = Harbor 兼容上传入口 + 对象存储 + 分析库 + 读接口（及可选静态前端托管）**。v1 共 **7** 个模块、**18** 个对外 HTTP 路由（Harbor 上传兼容 **9** + 展示读/overlay **9**）。实现语言 Go，HTTP 框架 Hertz；作业树落 **S3**（测试可用 MinIO）；列表/聚合标量落 **SQLite**（WAL）。评测环境（Harbor；本仓库对照包实际由 Pier 产出 Harbor 目录布局）跑完作业后，用官方 CLI `harbor upload` 或 `harbor run … --upload` 指向本服务；本服务是 **Harbor 兼容 ingest + 我方读模型**，不是第二套 runner，不调用 `harbor run`，不实现 Harbor Hub UI，也不实现 hosted 拉起（`--launch` / `POST /job-submit`）。Harness / Model / 评测集在 Harbor 侧可替换；本服务原样存储作业里记录的身份字段，缺则按本文规则填默认值，不编造非零用量、不编造 COS 档位名。
+本文只设计评测系统第 1 层：**评测展示服务 = Harbor 兼容上传入口 + 对象存储 + 分析库 + 读接口（及可选静态前端托管）**。v1 共 **7** 个模块、**18** 个对外 HTTP 路由（Harbor 上传兼容 **9** + 展示读/overlay **9**）。实现语言 Go，HTTP 框架 Hertz；作业树落 **S3**（本地 Compose 默认 RustFS；单元测试用 memory/fs）；列表/聚合标量落 **SQLite**（WAL）。评测环境（Harbor；本仓库对照包实际由 Pier 产出 Harbor 目录布局）跑完作业后，用官方 CLI `harbor upload` 或 `harbor run … --upload` 指向本服务；本服务是 **Harbor 兼容 ingest + 我方读模型**，不是第二套 runner，不调用 `harbor run`，不实现 Harbor Hub UI，也不实现 hosted 拉起（`--launch` / `POST /job-submit`）。Harness / Model / 评测集在 Harbor 侧可替换；本服务原样存储作业里记录的身份字段，缺则按本文规则填默认值，不编造非零用量、不编造 COS 档位名。
 
 生产 ingest **只有** Harbor 上传兼容面。已删除自定义 `POST /v1/jobs` zip/JSON 作为对外契约。夹具测试可在进程内调用 ingest 包，不经过该已废路径。
 
@@ -49,7 +49,7 @@
 | 编号 | 包名（见第 7 节） | 职责 | 不负责 |
 | --- | --- | --- | --- |
 | M1 ingest | `internal/evaldisplay/ingest` | 解 `job.tar.gz` / `trial.tar.gz`；校验 Harbor job/trial；null 用量→0；在 job finalize 后组装分析表写入批次 | 跑评测；改写 `result.json` 语义；把 peri.txt 当 ATIF；实现 PostgREST 语法 |
-| M2 s3 | `internal/evaldisplay/s3` | AWS SDK v2：Put/Get/Head；MinIO 兼容 endpoint；SSE 可选 | SQL；HTTP 路由 |
+| M2 s3 | `internal/evaldisplay/s3` | AWS SDK v2：Put/Get/Head；S3 兼容 endpoint（RustFS）；SSE 可选 | SQL；HTTP 路由 |
 | M3 store | `internal/evaldisplay/store` | SQLite（`database/sql` + sqlc，engine=sqlite）；WAL；写锁；`job_id` 唯一 | 聚合口径；S3 传输 |
 | M4 query | `internal/evaldisplay/query` | Pass@1、n、时长、token/cost/steps 汇总；双 job 对照 | ingest 校验；编造非零用量 |
 | M5 overlay | `internal/evaldisplay/overlay` | 我方 `job-overlay.v1`：runner、sandbox、endpoint_class、job_type、attestation、dataset_*、incomparability | Harbor `TrialResult` 字段所有权 |
@@ -114,7 +114,7 @@ Harbor CLI
 ### 3.1 S3
 
 - **生产：** AWS S3，SDK v2（`github.com/aws/aws-sdk-go-v2`）。
-- **测试：** MinIO 或 LocalStack，配置 `EVAL_DISPLAY_S3_ENDPOINT` + path-style。
+- **测试：** 单元测试用 memory/fs；本地联调用 RustFS 或 LocalStack，配置 `EVAL_DISPLAY_S3_ENDPOINT` + path-style。
 - **桶：** `EVAL_DISPLAY_S3_BUCKET`。可选 SSE：`EVAL_DISPLAY_S3_SSE`（空 = 关闭；`AES256` 或 `aws:kms`）。
 - **不要求** Kafka、CDN、多桶。
 
@@ -751,7 +751,7 @@ Gin 同样能完成这 18 个路由，但本仓库没有既有 Gin 代码。Fibe
 
 按切片交付，每片可对对照包做断言。不做 chat。不把自定义 `POST /v1/jobs` 做进生产。
 
-1. **Schema + S3 客户端：** `migrations/` 建 `hub_*`、`jobs`、`trials`、`job_overlays`；用量列 `NOT NULL DEFAULT 0`。sqlc 生成 M3。MinIO 测 Put/Get。
+1. **Schema + S3 客户端：** `migrations/` 建 `hub_*`、`jobs`、`trials`、`job_overlays`；用量列 `NOT NULL DEFAULT 0`。sqlc 生成 M3。单元测试用 memory/fs；S3 兼容面（RustFS）测 Put/Get。
 2. **换票 + job 行：** API-01、API-02、API-07。用 curl 模拟 CLI：换票 → insert job → GET visibility。
 3. **trial + agent/model + Storage：** API-03…API-06、API-08。上传最小 `trial.tar.gz`。
 4. **TUS：** API-09。用大于 6 MiB 的夹具或 CLI 真实 `--concurrency`。

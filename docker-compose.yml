@@ -1,15 +1,10 @@
-# 默认：文件系统作业树 + 命名卷持久化 SQLite / S3 目录。
+# 默认：RustFS 作业树（S3 兼容 API）+ 命名卷持久化 SQLite。
 # 前台 GET /v1 公开，不设置 viewer 令牌。
-# 生产请覆盖 ADMIN / ANON / JWT 三项，勿沿用下方开发默认值。
+# 生产请覆盖 ADMIN / ANON / JWT 以及对象存储访问密钥，勿沿用下方开发默认值。
+# 无 Docker 的 go run 仍可用 EVAL_DISPLAY_S3_DIR 文件系统后端。
 #
-# 可选 MinIO：
-#   EVAL_DISPLAY_S3_BACKEND=aws \
-#   EVAL_DISPLAY_S3_ENDPOINT=http://minio:9000 \
-#   EVAL_DISPLAY_S3_BUCKET=results \
-#   EVAL_DISPLAY_S3_ACCESS_KEY=minio \
-#   EVAL_DISPLAY_S3_SECRET_KEY=minio-dev-secret \
-#   EVAL_DISPLAY_S3_PATH_STYLE=true \
-#   docker compose --profile minio up --build
+# 文档：https://docs.rustfs.com/en/installation/container/docker
+# S3 API :9000，Console :9001；默认仅 path-style（未设 RUSTFS_SERVER_DOMAINS）。
 
 name: evo-harness
 
@@ -22,17 +17,16 @@ services:
     environment:
       EVAL_DISPLAY_ADDR: ":8080"
       EVAL_DISPLAY_SQLITE_PATH: /data/eval-display.sqlite
-      EVAL_DISPLAY_S3_DIR: /data/s3
       EVAL_DISPLAY_ADMIN_TOKEN: ${EVAL_DISPLAY_ADMIN_TOKEN:-dev-admin-token}
       EVAL_DISPLAY_ANON_KEY: ${EVAL_DISPLAY_ANON_KEY:-dev-anon}
       EVAL_DISPLAY_JWT_SECRET: ${EVAL_DISPLAY_JWT_SECRET:-dev-jwt-secret}
       EVAL_DISPLAY_TOKEN: ${EVAL_DISPLAY_TOKEN:-dev-token}
-      EVAL_DISPLAY_S3_BACKEND: ${EVAL_DISPLAY_S3_BACKEND:-fs}
-      EVAL_DISPLAY_S3_ENDPOINT: ${EVAL_DISPLAY_S3_ENDPOINT:-}
+      EVAL_DISPLAY_S3_BACKEND: ${EVAL_DISPLAY_S3_BACKEND:-aws}
+      EVAL_DISPLAY_S3_ENDPOINT: ${EVAL_DISPLAY_S3_ENDPOINT:-http://rustfs:9000}
       EVAL_DISPLAY_S3_BUCKET: ${EVAL_DISPLAY_S3_BUCKET:-results}
       EVAL_DISPLAY_S3_REGION: ${EVAL_DISPLAY_S3_REGION:-us-east-1}
-      EVAL_DISPLAY_S3_ACCESS_KEY: ${EVAL_DISPLAY_S3_ACCESS_KEY:-}
-      EVAL_DISPLAY_S3_SECRET_KEY: ${EVAL_DISPLAY_S3_SECRET_KEY:-}
+      EVAL_DISPLAY_S3_ACCESS_KEY: ${EVAL_DISPLAY_S3_ACCESS_KEY:-rustfs-dev}
+      EVAL_DISPLAY_S3_SECRET_KEY: ${EVAL_DISPLAY_S3_SECRET_KEY:-rustfs-dev-secret}
       EVAL_DISPLAY_S3_PATH_STYLE: ${EVAL_DISPLAY_S3_PATH_STYLE:-true}
     volumes:
       - eval-data:/data
@@ -43,45 +37,55 @@ services:
       retries: 5
       start_period: 10s
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
-        required: false
+      rustfs-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
-  minio:
-    profiles: ["minio"]
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
+  rustfs:
+    image: rustfs/rustfs:latest
     environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: minio-dev-secret
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_REGION: us-east-1
+      RUSTFS_ACCESS_KEY: ${EVAL_DISPLAY_S3_ACCESS_KEY:-rustfs-dev}
+      RUSTFS_SECRET_KEY: ${EVAL_DISPLAY_S3_SECRET_KEY:-rustfs-dev-secret}
+      # 官方 docker 示例常设 RUSTFS_OBS_LOG_DIRECTORY=/var/log/rustfs/，但容器用户无法 mkdir 该路径；未设则日志走 stdout。
+      RUSTFS_OBS_LOGGER_LEVEL: error
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio-data:/data
+      - rustfs-data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      # 官方就绪探针：https://docs.rustfs.com/en/operations/status-check
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/health/ready"]
       interval: 10s
       timeout: 5s
-      retries: 8
-      start_period: 15s
+      retries: 12
+      start_period: 20s
     restart: unless-stopped
 
-  minio-init:
-    profiles: ["minio"]
-    image: minio/mc:latest
+  rustfs-init:
+    image: rustfs/rc:latest
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
+    environment:
+      RUSTFS_ACCESS_KEY: ${EVAL_DISPLAY_S3_ACCESS_KEY:-rustfs-dev}
+      RUSTFS_SECRET_KEY: ${EVAL_DISPLAY_S3_SECRET_KEY:-rustfs-dev-secret}
     restart: on-failure
     entrypoint:
       - /bin/sh
       - -c
       - |
-        mc alias set local http://minio:9000 minio minio-dev-secret &&
-        mc mb --ignore-existing local/results
+        /usr/bin/rc alias set rustfs http://rustfs:9000 "$${RUSTFS_ACCESS_KEY}" "$${RUSTFS_SECRET_KEY}" \
+          --region us-east-1 --bucket-lookup path &&
+        /usr/bin/rc bucket create rustfs/results --ignore-existing
 
 volumes:
   eval-data:
-  minio-data:
+  rustfs-data:

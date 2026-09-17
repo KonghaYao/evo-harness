@@ -15,7 +15,7 @@ Go module 路径为 **`evo-harness`**（不要虚构 `github.com/...`）。HTTP 
 | `cmd/eval-display` | 读配置、打开 SQLite / S3、注册路由、优雅退出。禁止在 `main` 里写 SQL 或拼 S3 key。 |
 | `internal/evaldisplay/conf` | 环境变量 |
 | `internal/evaldisplay/ingest` | 解 `job.tar.gz` / `trial.tar.gz`，校验 Harbor JSON，用量 null→0，finalize 写分析表 |
-| `internal/evaldisplay/s3` | AWS SDK v2 Put/Get/Head；MinIO 兼容 endpoint；测试可用 memory / filesystem 假实现 |
+| `internal/evaldisplay/s3` | AWS SDK v2 Put/Get/Head；S3 兼容 endpoint（RustFS）；测试可用 memory / filesystem 假实现 |
 | `internal/evaldisplay/store` | `modernc.org/sqlite`（无 CGO）+ WAL；**所有 SQLite 写必须经进程内互斥锁串行化** |
 | `internal/evaldisplay/query` | Pass@1、用量汇总、双 job 对照 |
 | `internal/evaldisplay/overlay` | 我方 `job-overlay.v1` |
@@ -44,7 +44,7 @@ harbor upload <job-dir>
 
 - 实现 `harbor upload` / `harbor run --upload` 所需的换票、PostgREST（`job`/`trial`/`agent`/`model`/`trial_model`）、`rpc/list_my_orgs` 桩、Storage 对象写入、TUS。
 - **禁止**实现 `--launch`、`POST /job-submit`、`GET /job-status`、自定义 `POST /v1/jobs` zip/JSON ingest、Hub 分享 / hosted secret。
-- 作业树写入 **S3**（键沿用 CLI `objectName`：`jobs/{job_id}/job.tar.gz` 等）。测试可用 memory/fs 或 MinIO，接口须允许替换。
+- 作业树写入 **S3**（键沿用 CLI `objectName`：`jobs/{job_id}/job.tar.gz` 等）。测试可用 memory/fs；Compose 默认 RustFS。接口须允许替换。单元测试不得依赖真实 AWS 或在线 RustFS。
 - 列表/聚合标量写入 **SQLite WAL**。`GET /v1/jobs` 只读分析表，且只返回 **finalize 完成**（`hub_job.archive_path` 已设并已写入分析表）的 job。
 - 幂等键是 Harbor **job UUID**，不是内容哈希。已存在 job **不得**因内容不同返回 409。
 
@@ -118,16 +118,14 @@ go run ./cmd/eval-display
 
 ## Docker 与 CI
 
-镜像监听 `EVAL_DISPLAY_ADDR=:8080`（全接口），前台读接口公开，**不要**为 viewer 配置令牌。SQLite 与文件系统作业树默认写在 `/data`。
+镜像监听 `EVAL_DISPLAY_ADDR=:8080`（全接口），前台读接口公开，**不要**为 viewer 配置令牌。SQLite 写在 `/data`。作业树默认写入 Compose 中的 **RustFS**（S3 API `:9000`，控制台 `:9001`）。无 Docker 的本地 `go run` 仍可用 `EVAL_DISPLAY_S3_DIR` 文件系统后端。
 
 ```bash
 docker compose up --build
-# 可选 MinIO（需同时把作业树切到 aws/MinIO）：
-# make compose-minio
 # docker.io 不可达时：docker build --build-arg BUILDER_IMAGE=... --build-arg GOPROXY=https://goproxy.cn,direct
 ```
 
-`docker compose up` 使用开发默认 `EVAL_DISPLAY_ADMIN_TOKEN` / `EVAL_DISPLAY_ANON_KEY` / `EVAL_DISPLAY_JWT_SECRET`（与上文一致）。生产必须覆盖这三项；Harbor 上传另设 `EVAL_DISPLAY_TOKEN`。
+`docker compose up` 使用开发默认 `EVAL_DISPLAY_ADMIN_TOKEN` / `EVAL_DISPLAY_ANON_KEY` / `EVAL_DISPLAY_JWT_SECRET`（与上文一致），以及本地 RustFS 访问密钥 `EVAL_DISPLAY_S3_ACCESS_KEY` / `EVAL_DISPLAY_S3_SECRET_KEY`（默认 `rustfs-dev` / `rustfs-dev-secret`，勿用于生产）。生产必须覆盖 ADMIN / ANON / JWT 与对象存储凭据；Harbor 上传另设 `EVAL_DISPLAY_TOKEN`。
 
 GitHub Actions：
 
