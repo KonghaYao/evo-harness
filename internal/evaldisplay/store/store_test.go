@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -278,6 +279,52 @@ INSERT INTO job_overlays (job_id, attestation_status, extra, listed) VALUES ('dd
 	}
 	if total != 1 || rows[0].AgentName != "peri" {
 		t.Fatalf("legacy list %+v total=%d", rows, total)
+	}
+}
+
+func TestDeleteJobRemovesAnalysisOverlayAndHub(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "t.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	ctx := context.Background()
+	jobID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+	name := "t1"
+	ver, model, prov := "agent-v3.14.2", "deepseek-v4-flash", "deepseek"
+	job := AnalysisJob{JobID: jobID, JobName: "delete-me", S3Prefix: "jobs/" + jobID + "/", NTrials: 1, NReward1: 1, PassAt1: 1, IngestedAt: NowRFC3339()}
+	trials := []AnalysisTrial{
+		{TrialID: "88888888-8888-4888-8888-888888888888", JobID: jobID, TaskName: "a", TaskChecksum: "c1", TrialName: &name, AgentName: "peri", AgentVersion: &ver, ModelName: &model, ModelProvider: &prov, AgentInfo: `{"name":"peri"}`, Reward: 1, VerifierRewards: `{"reward":1}`},
+	}
+	if err := st.Write(ctx, func(ctx context.Context, tx *sql.Tx) error {
+		if err := InsertHubJob(ctx, tx, HubJob{ID: jobID, JobName: strp("delete-me")}); err != nil {
+			return err
+		}
+		return InsertFinalized(ctx, tx, job, trials, Overlay{JobID: jobID, AttestationStatus: "unsigned"})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.DeleteJob(ctx, jobID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.GetAnalysisJob(ctx, jobID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("jobs row: %v", err)
+	}
+	if _, err := st.GetOverlay(ctx, jobID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("overlay: %v", err)
+	}
+	got, err := st.AllTrials(ctx, jobID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("trials left: %d", len(got))
+	}
+	if _, err := GetHubJob(ctx, st.DB, jobID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("hub_job: %v", err)
+	}
+	if _, err := st.DeleteJob(ctx, jobID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("second delete want ErrNotFound got %v", err)
 	}
 }
 

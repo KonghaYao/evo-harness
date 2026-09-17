@@ -175,20 +175,33 @@
             dash(j.job_type) +
             "</td><td>" +
             dash(j.endpoint_class) +
-            "</td></tr>"
+            '</td><td class="act"><button type="button" class="btn btn-danger" data-delete="' +
+            escapeHtml(j.job_id) +
+            '" data-name="' +
+            escapeHtml(j.job_name || j.job_id) +
+            '">删除</button></td></tr>'
           );
         })
         .join("");
       main.innerHTML =
         "<h1>作业</h1>" +
-        '<p class="note">含尚未 finalize 的 hub_job。一行一个 job_id。点击进入 overlay / 签字 / 删除。</p>' +
+        '<p class="note">含尚未 finalize 的 hub_job。一行一个 job_id。点击行进入 overlay / 签字；删除须确认，且不可恢复。</p>' +
         (items.length
           ? '<div class="table-scroll"><table><thead><tr>' +
-            "<th>作业</th><th>ingest</th><th>前台可见</th><th>签字</th><th>Pass@1</th><th>hub / 分析 trial</th><th>job_type</th><th>endpoint_class</th>" +
+            "<th>作业</th><th>ingest</th><th>前台可见</th><th>签字</th><th>Pass@1</th><th>hub / 分析 trial</th><th>job_type</th><th>endpoint_class</th><th class=\"act\">操作</th>" +
             "</tr></thead><tbody>" +
             rows +
             "</tbody></table></div>"
           : '<p class="empty">尚无 hub_job。</p>');
+      main.querySelectorAll("button[data-delete]").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          deleteJob(btn.getAttribute("data-delete"), btn.getAttribute("data-name"), function () {
+            renderJobs();
+          });
+        });
+      });
     } catch (e) {
       handleErr(g, e);
     }
@@ -240,6 +253,28 @@
       escapeHtml(label) +
       "</option>"
     );
+  }
+
+  async function deleteJob(jobId, jobName, onDone, opts) {
+    if (!jobId) return;
+    opts = opts || {};
+    if (!opts.skipConfirm) {
+      const label = jobName || jobId;
+      const ok = window.confirm(
+        "确定删除作业「" +
+          label +
+          "」？\n将删除分析行、Harbor 兼容记录与对象存储前缀，且不可恢复。\njob_id：" +
+          jobId
+      );
+      if (!ok) return;
+    }
+    try {
+      await api("/v1/admin/jobs/" + encodeURIComponent(jobId), { method: "DELETE" });
+      showFlash("", false);
+      if (onDone) onDone();
+    } catch (err) {
+      showFlash(err.message || String(err), true);
+    }
   }
 
   async function renderJob(jobId) {
@@ -346,12 +381,9 @@
             showFlash("确认框须原样填入 job_id。", true);
             return;
           }
-          try {
-            await api("/v1/admin/jobs/" + encodeURIComponent(jobId), { method: "DELETE" });
+          await deleteJob(jobId, j.job_name || jobId, function () {
             location.hash = "#/";
-          } catch (err) {
-            showFlash(err.message || String(err), true);
-          }
+          }, { skipConfirm: true });
         });
       }
     } catch (e) {
@@ -387,8 +419,9 @@
   });
   window.addEventListener("hashchange", route);
   main.addEventListener("click", function (e) {
+    if (e.target.closest("button, a, form, input, label, select, textarea")) return;
     const row = e.target.closest("tr[data-job]");
-    if (row && !e.target.closest("form")) {
+    if (row) {
       location.hash = "#/jobs/" + row.getAttribute("data-job");
     }
   });

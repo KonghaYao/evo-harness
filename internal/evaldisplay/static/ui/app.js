@@ -333,7 +333,7 @@
             '<tr data-job="' +
             escapeHtml(j.job_id) +
             '" tabindex="0">' +
-            '<td><input class="chk" type="checkbox" data-cmp="' +
+            '<td class="pick"><input class="chk" type="checkbox" data-cmp="' +
             escapeHtml(j.job_id) +
             '"' +
             checked +
@@ -430,7 +430,7 @@
         "</div>" +
         (boardJobs.length
           ? '<div class="table-scroll"><table class="board"><thead><tr>' +
-            "<th></th><th>作业</th><th>agent / model</th><th>Pass@1</th><th>n</th>" +
+            "<th>对照</th><th>作业</th><th>agent / model</th><th>Pass@1</th><th>n</th>" +
             "<th>n_input_tokens</th><th>n_cache_tokens</th><th>n_output_tokens</th><th>cost_usd</th><th>n_agent_steps</th>" +
             "<th>签字</th><th>执行器</th></tr></thead><tbody>" +
             rows +
@@ -471,8 +471,11 @@
       "</div>" +
       "</header>" +
       '<div class="chart-stage">' +
+      '<div class="chart-plot">' +
       '<div class="chart-canvas-wrap" id="chart-wrap"></div>' +
       '<div id="chart-tip" class="chart-tip" hidden></div>' +
+      "</div>" +
+      '<aside class="chart-legend" id="chart-legend" aria-label="harness 图例"></aside>' +
       "</div>" +
       '<p class="chart-caption" id="chart-hint">Token = n_input_tokens + n_cache_tokens + n_output_tokens。横轴原始值向右更少，故右上更高完成度且更省消耗。每个点是一对 model · harness（harness 即 agent_name）。</p>' +
       "</section>"
@@ -513,6 +516,32 @@
       });
     });
     return dx;
+  }
+
+  function fillChartLegend(harnesses, colors) {
+    const el = document.getElementById("chart-legend");
+    if (!el) return;
+    if (!harnesses || !harnesses.length) {
+      el.innerHTML = "";
+      el.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    const rows = harnesses
+      .map(function (h) {
+        const color = (colors && colors[h]) || CHART_PALETTE[0];
+        return (
+          '<div class="chart-leg-row"><i style="background:' +
+          color +
+          '"></i>' +
+          escapeHtml(h) +
+          "</div>"
+        );
+      })
+      .join("");
+    el.innerHTML =
+      rows +
+      '<div class="chart-leg-row"><i class="hollow"></i>未报告用量</div>';
   }
 
   function renderChartTip(j, xDef, xVal, all) {
@@ -580,21 +609,21 @@
     tip.innerHTML = renderChartTip(j, xDef, raw.xTrue != null ? raw.xTrue : pt.parsed.x, boardJobs);
     tip.hidden = false;
     const canvas = context.chart && context.chart.canvas;
-    const stage = wrap.closest(".chart-stage") || wrap.closest(".chart-panel") || wrap;
+    const plot = wrap.closest(".chart-plot") || wrap;
     if (!canvas) {
       tip.hidden = true;
       return;
     }
     const cr = canvas.getBoundingClientRect();
-    const pr = stage.getBoundingClientRect();
+    const pr = plot.getBoundingClientRect();
     const caretX = tooltip.caretX;
     const caretY = tooltip.caretY;
     const leftRaw = cr.left - pr.left + caretX + 12;
-    const maxLeft = Math.max(8, stage.clientWidth - tip.offsetWidth - 8);
+    const maxLeft = Math.max(8, plot.clientWidth - tip.offsetWidth - 8);
     const left = Math.max(8, Math.min(leftRaw, maxLeft));
     let top = cr.top - pr.top + caretY - tip.offsetHeight - 12;
     if (top < 8) top = cr.top - pr.top + caretY + 16;
-    const maxTop = Math.max(8, stage.clientHeight - tip.offsetHeight - 8);
+    const maxTop = Math.max(8, plot.clientHeight - tip.offsetHeight - 8);
     tip.style.left = left + "px";
     tip.style.top = Math.max(8, Math.min(top, maxTop)) + "px";
   }
@@ -605,6 +634,7 @@
     destroyBoardChart();
     if (typeof Chart === "undefined") {
       wrap.innerHTML = '<p class="chart-empty">对照图脚本未加载。</p>';
+      fillChartLegend([]);
       setChartHint("");
       return;
     }
@@ -614,6 +644,7 @@
       wrap.innerHTML = jobsCache.length
         ? '<p class="chart-empty">本榜尚无已 finalize 作业。</p>'
         : '<p class="chart-empty">尚无已 finalize 作业，无法绘图。请用 Harbor CLI 上传后再刷新。</p>';
+      fillChartLegend([]);
       setChartHint("");
       return;
     }
@@ -673,6 +704,7 @@
         pointBorderWidth: 2
       };
     });
+    fillChartLegend(harnesses, colors);
     wrap.innerHTML = '<canvas id="board-chart" role="img" aria-label="完成度对照散点图，右上更优"></canvas>';
     const canvas = document.getElementById("board-chart");
     const nUnrep = points.filter(function (p) { return p.unreported; }).length;

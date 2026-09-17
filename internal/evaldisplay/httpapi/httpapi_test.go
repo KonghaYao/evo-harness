@@ -2,9 +2,12 @@ package httpapi_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"path/filepath"
 	"strings"
@@ -29,9 +32,17 @@ type env struct {
 	adminToken string
 	anon       string
 	jwt        string
+	objects    objs3.ObjectStore
+	mem        *objs3.Memory
+	store      *store.Store
 }
 
 func setup(t *testing.T) *env {
+	t.Helper()
+	return setupWithObjects(t, objs3.NewMemory())
+}
+
+func setupWithObjects(t *testing.T, objects objs3.ObjectStore) *env {
 	t.Helper()
 	cfg := conf.Config{
 		Addr:           "127.0.0.1:0",
@@ -52,7 +63,6 @@ func setup(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
-	objects := objs3.NewMemory()
 	h := httpapi.NewServer(httpapi.Deps{
 		Conf:    cfg,
 		Store:   st,
@@ -61,7 +71,11 @@ func setup(t *testing.T) *env {
 		Overlay: overlay.New(st),
 		Ingest:  ingest.New(st, objects),
 	})
-	return &env{h: h, token: cfg.Token, adminToken: cfg.AdminToken, anon: cfg.AnonKey}
+	e := &env{h: h, token: cfg.Token, adminToken: cfg.AdminToken, anon: cfg.AnonKey, objects: objects, store: st}
+	if mem, ok := objects.(*objs3.Memory); ok {
+		e.mem = mem
+	}
+	return e
 }
 
 func (e *env) do(method, path string, body []byte, headers ...ut.Header) *ut.ResponseRecorder {
@@ -824,6 +838,17 @@ func TestRootAndAdminHTML(t *testing.T) {
 	if w.Code != 200 || !bytes.Contains(w.Body.Bytes(), []byte("后台")) {
 		t.Fatalf("admin page broken after chart: %d %s", w.Code, w.Body)
 	}
+	w = e.do("GET", "/admin/app.js", nil)
+	if w.Code != 200 {
+		t.Fatalf("GET /admin/app.js %d", w.Code)
+	}
+	adminJS := w.Body.Bytes()
+	if !bytes.Contains(adminJS, []byte(`method: "DELETE"`)) || !bytes.Contains(adminJS, []byte("data-delete")) {
+		t.Fatalf("admin UI must expose job delete")
+	}
+	if !bytes.Contains(adminJS, []byte("确定删除作业")) {
+		t.Fatalf("admin delete must confirm in 书面语")
+	}
 }
 
 func TestViewerForbiddenOnAdminWrites(t *testing.T) {
@@ -876,6 +901,10 @@ func TestViewerForbiddenOnAdminWrites(t *testing.T) {
 	w = e.v1("DELETE", "/v1/admin/jobs/"+job.ID, nil)
 	if w.Code != 403 {
 		t.Fatalf("viewer DELETE want 403 got %d %s", w.Code, w.Body)
+	}
+	w = e.harbor("DELETE", "/v1/admin/jobs/"+job.ID, nil)
+	if w.Code != 401 && w.Code != 403 {
+		t.Fatalf("harbor JWT DELETE want 401/403 got %d %s", w.Code, w.Body)
 	}
 	w = e.v1("GET", "/v1/admin/status", nil)
 	if w.Code != 403 {
@@ -973,6 +1002,139 @@ func TestAdminOverlayDeleteAndUnlisted(t *testing.T) {
 	w = e.admin("GET", "/v1/admin/jobs/"+job.ID, nil)
 	if w.Code != 404 {
 		t.Fatalf("admin deleted want 404 got %d %s", w.Code, w.Body)
+	}
+}
+
+func TestAdminDeleteJob(t *testing.T) {
+	e := setup(t)
+	job := ingest.SynthJob{
+		ID:   "ffffffff-ffff-4fff-8fff-ffffffffffff",
+		Name: "admin-delete-job",
+		Trials: []ingest.SynthTrial{
+			{ID: "66666666-6666-4666-8666-666666666661", Name: "t1", Checksum: "z1", Reward: 1},
+			{ID: "66666666-6666-4666-8666-666666666662", Name: "t2", Checksum: "z2", Reward: 0},
+		},
+	}
+	uploadJob(t, e, job)
+	ctx := context.Background()
+	objKey := "jobs/" + job.ID + "/job.tar.gz"
+	exists, _, err := e.objects.Head(ctx, objKey)
+	if err != nil || !exists {
+		t.Fatalf("expected s3 object before delete exists=%v err=%v", exists, err)
+	}
+
+	w := e.do("GET", "/v1/jobs", nil)
+	if w.Code != 200 || !bytes.Contains(w.Body.Bytes(), []byte(job.ID)) {
+		t.Fatalf("public list missing job before delete: %d %s", w.Code, w.Body)
+	}
+
+	w = e.admin("DELETE", "/v1/admin/jobs/"+job.ID, nil)
+	if w.Code != 200 {
+		t.Fatalf("admin delete %d %s", w.Code, w.Body)
+	}
+
+	w = e.do("GET", "/v1/jobs", nil)
+	if w.Code != 200 {
+		t.Fatalf("public list after delete %d %s", w.Code, w.Body)
+	}
+	if bytes.Contains(w.Body.Bytes(), []byte(job.ID)) {
+		t.Fatalf("deleted job still in GET /v1/jobs: %s", w.Body)
+	}
+	w = e.do("GET", "/v1/jobs/"+job.ID, nil)
+	if w.Code != 404 {
+		t.Fatalf("public detail after delete want 404 got %d %s", w.Code, w.Body)
+	}
+	w = e.admin("GET", "/v1/admin/jobs/"+job.ID, nil)
+	if w.Code != 404 {
+		t.Fatalf("admin get after delete want 404 got %d %s", w.Code, w.Body)
+	}
+	w = e.admin("DELETE", "/v1/admin/jobs/"+job.ID, nil)
+	if w.Code != 404 {
+		t.Fatalf("idempotent delete want 404 got %d %s", w.Code, w.Body)
+	}
+
+	exists, _, err = e.objects.Head(ctx, objKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Fatal("s3 job.tar.gz still present after delete")
+	}
+	exists, _, err = e.objects.Head(ctx, "jobs/"+job.ID+"/files/config.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exists {
+		t.Fatal("s3 unpacked files still present after delete")
+	}
+	if _, err := e.store.GetOverlay(ctx, job.ID); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("overlay orphan: %v", err)
+	}
+	if _, err := e.store.GetAnalysisJob(ctx, job.ID); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("analysis job orphan: %v", err)
+	}
+	trials, err := e.store.AllTrials(ctx, job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(trials) != 0 {
+		t.Fatalf("analysis trials orphan: %d", len(trials))
+	}
+}
+
+type failDeleteStore struct {
+	inner objs3.ObjectStore
+	err   error
+}
+
+func (f *failDeleteStore) Put(ctx context.Context, key string, body io.Reader, size int64, contentType string) error {
+	return f.inner.Put(ctx, key, body, size, contentType)
+}
+func (f *failDeleteStore) Get(ctx context.Context, key string) (io.ReadCloser, error) {
+	return f.inner.Get(ctx, key)
+}
+func (f *failDeleteStore) Head(ctx context.Context, key string) (bool, int64, error) {
+	return f.inner.Head(ctx, key)
+}
+func (f *failDeleteStore) DeletePrefix(ctx context.Context, prefix string) error {
+	if f.err != nil {
+		return f.err
+	}
+	return f.inner.DeletePrefix(ctx, prefix)
+}
+
+func TestAdminDeleteJobS3FailureLeavesRows(t *testing.T) {
+	inner := objs3.NewMemory()
+	failing := &failDeleteStore{inner: inner, err: errors.New("s3 unavailable")}
+	e := setupWithObjects(t, failing)
+	job := ingest.SynthJob{
+		ID:   "99999999-9999-4999-8999-999999999999",
+		Name: "admin-delete-s3-fail",
+		Trials: []ingest.SynthTrial{
+			{ID: "77777777-7777-4777-8777-777777777771", Name: "t1", Checksum: "s1", Reward: 1},
+		},
+	}
+	uploadJob(t, e, job)
+
+	w := e.admin("DELETE", "/v1/admin/jobs/"+job.ID, nil)
+	if w.Code != 500 {
+		t.Fatalf("s3 fail want 500 got %d %s", w.Code, w.Body)
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte("s3_delete_failed")) {
+		t.Fatalf("want s3_delete_failed: %s", w.Body)
+	}
+	w = e.do("GET", "/v1/jobs/"+job.ID, nil)
+	if w.Code != 200 {
+		t.Fatalf("sqlite must remain after s3 failure, got %d %s", w.Code, w.Body)
+	}
+	failing.err = nil
+	w = e.admin("DELETE", "/v1/admin/jobs/"+job.ID, nil)
+	if w.Code != 200 {
+		t.Fatalf("retry delete %d %s", w.Code, w.Body)
+	}
+	w = e.do("GET", "/v1/jobs/"+job.ID, nil)
+	if w.Code != 404 {
+		t.Fatalf("retry should remove job, got %d %s", w.Code, w.Body)
 	}
 }
 

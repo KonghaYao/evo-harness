@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fenix Eval · 品牌规格</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --paper: #ffffff;
+      --surface: #f3f5f7;
+      --ink: #2c333c;
+      --muted: #6a727c;
+      --faint: #8b929c;
+      --line: #e2e5e9;
+      --line-strong: #c9ced6;
+      --accent: #1b4f9a;
+      --ok: #2f5d3a;
+      --better: #2f9e44;
+      --better-fill: rgba(47, 158, 68, 0.12);
+      --admin-head: #162033;
+      --danger: #9b2c2c;
+      --serif: "Iowan Old Style", Palatino, "Songti SC", "Noto Serif SC", serif;
+      --sans: "Avenir Next", "Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif;
+      --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+      --col: 1120px;
+      --radius: 0;
+    }
+
+    * { box-sizing: border-box; border-radius: var(--radius); }
+
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    body {
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 100vh;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .brand-bar {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      height: 3px;
+      background: var(--accent);
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; text-underline-offset: 2px; }
+    a:focus-visible,
+    .tabs [role="tab"]:focus-visible {
+      outline: 1px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .tabs [role="tab"][aria-selected="true"]:focus-visible {
+      outline-color: var(--ink);
+    }
+
+    code, .mono {
+      font-family: var(--mono);
+      font-size: 0.86em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .wrap {
+      max-width: var(--col);
+      margin: 0 auto;
+      padding: 28px 24px 80px;
+    }
+
+    .mast { padding-bottom: 4px; }
+
+    .kicker {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 6px 24px;
+      margin: 0 0 14px;
+      font-size: 0.7rem;
+      letter-spacing: 0.06em;
+      color: var(--faint);
+    }
+
+    .lockup {
+      margin: 0 0 6px;
+      font-family: var(--serif);
+      font-size: clamp(1.85rem, 4vw, 2.35rem);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+    }
+
+    .lockup .word-eval { color: var(--accent); font-style: normal; }
+
+    .lockup-rule {
+      width: 3.5rem;
+      height: 2px;
+      margin: 0 0 12px;
+      background: var(--accent);
+    }
+
+    .mast h1 {
+      margin: 0 0 10px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+
+    .lede {
+      max-width: 46em;
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .tabbar {
+      position: sticky;
+      top: 3px;
+      z-index: 2;
+      background: var(--bg);
+      margin: 0 -24px;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .tabs [role="tab"] {
+      appearance: none;
+      -webkit-appearance: none;
+      background: transparent;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      margin: 0 0 -1px;
+      padding: 10px 14px 9px;
+      font-family: inherit;
+      font-size: 0.82rem;
+      line-height: 1.2;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .tabs [role="tab"]:hover { color: var(--accent); }
+
+    .tabs [role="tab"][aria-selected="true"] {
+      background: var(--accent);
+      color: #ffffff;
+      border-bottom-color: var(--accent);
+      font-weight: 500;
+    }
+
+    .tabs [role="tab"][aria-selected="true"]:hover { color: #ffffff; }
+
+    .panel { margin: 28px 0 0; }
+    .panel[hidden] { display: none; }
+
+    .spec-split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(16rem, 0.8fr);
+      gap: 18px 32px;
+      align-items: start;
+      margin: 0 0 20px;
+    }
+
+    .spec-split .chart-spec {
+      max-width: none;
+    }
+
+    .spec-split .plot-frame {
+      max-width: none;
+    }
+
+    .spec-copy h3:first-child { margin-top: 0; }
+    .spec-copy p,
+    .spec-copy ol,
+    .spec-copy ul { max-width: none; }
+
+    .sec-label {
+      margin: 0 0 4px;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      padding: 0 0 8px;
+      border-bottom: 1px solid var(--line);
+      font-family: var(--serif);
+      font-size: 1.45rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      color: var(--ink);
+    }
+
+    h3 {
+      margin: 24px 0 8px;
+      font-family: var(--serif);
+      font-size: 1.02rem;
+      font-weight: 600;
+    }
+
+    p { margin: 0 0 10px; max-width: 46em; }
+    p.wide { max-width: none; }
+
+    .note {
+      max-width: 46em;
+      margin: 12px 0 0;
+      padding: 0 0 0 12px;
+      border-left: 2px solid var(--accent);
+      color: var(--ink);
+      font-size: 0.88rem;
+    }
+
+    .quote {
+      margin: 0;
+      padding: 0 0 0 12px;
+      border-left: 2px solid var(--accent);
+      font-family: var(--serif);
+      font-size: 1.05rem;
+      line-height: 1.45;
+      max-width: 42em;
+    }
+
+    figure {
+      margin: 14px 0 18px;
+    }
+
+    figcaption {
+      margin: 8px 0 0;
+      font-size: 0.75rem;
+      line-height: 1.45;
+      color: var(--muted);
+      max-width: 46em;
+    }
+
+    figcaption .n {
+      color: var(--accent);
+      font-weight: 500;
+      margin-right: 0.35em;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+      margin: 8px 0 4px;
+    }
+
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 7px 10px 7px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 500;
+      color: var(--faint);
+      border-bottom: 1px solid var(--line-strong);
+    }
+
+    td:first-child { font-weight: 600; white-space: nowrap; }
+    td.mono, th.mono { font-family: var(--mono); font-weight: 400; }
+
+    .scroll { overflow-x: auto; }
+
+    ul, ol { margin: 0 0 10px; padding-left: 1.15em; max-width: 46em; }
+    li { margin: 0 0 4px; }
+
+    .compact { font-size: 0.88rem; }
+    .compact li { margin: 0 0 3px; }
+
+    .fn {
+      margin: 16px 0 0;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.75rem;
+      max-width: 46em;
+    }
+
+    .lockups {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0;
+      margin: 0;
+      border: 1px solid var(--line);
+    }
+
+    .lock-card {
+      background: var(--paper);
+      border: 0;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 14px;
+      min-height: 5.6rem;
+    }
+
+    .lock-card:nth-child(2n) { border-right: 0; }
+    .lock-card:nth-last-child(-n+2) { border-bottom: 0; }
+
+    .lock-card .where {
+      margin: 0 0 8px;
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      color: var(--faint);
+    }
+
+    .lock-card .sample {
+      font-family: var(--serif);
+      font-size: 1.12rem;
+      letter-spacing: -0.02em;
+    }
+
+    .lock-card.log .sample {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      letter-spacing: 0;
+    }
+
+    .lock-card.admin {
+      background: var(--admin-head);
+      color: #f3f5f7;
+    }
+
+    .lock-card.admin .where { color: #9aa3b0; }
+    .lock-card.admin .sample { color: #f3f5f7; }
+
+    .mini-nav {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mini-brand {
+      font-family: var(--serif);
+      font-size: 0.78rem;
+      letter-spacing: 0.02em;
+      color: var(--ink);
+    }
+
+    .mini-brand .word-eval { color: var(--accent); }
+
+    .mini-links {
+      display: flex;
+      gap: 10px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .mini-links span[aria-current] {
+      color: var(--accent);
+      padding-bottom: 4px;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .hero-swatch { margin: 8px 0 20px; }
+
+    .hero-face {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      min-height: 200px;
+      padding: 20px 24px;
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .hero-kicker {
+      font-size: 0.7rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    .hero-hex {
+      margin-top: 8px;
+      font-family: var(--mono);
+      font-size: clamp(2.2rem, 5.5vw, 3.1rem);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0;
+      line-height: 1.05;
+    }
+
+    .hero-meta {
+      margin-top: 6px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .token .sw {
+      display: inline-block;
+      width: 0.9em;
+      height: 0.9em;
+      margin-right: 0.45em;
+      vertical-align: -0.1em;
+      border: 1px solid var(--line);
+    }
+
+    .token .sw.ink { border-color: #2c333c; }
+    .token .sw.line { background: #e2e5e9; }
+    .type-specimen {
+      border: 1px solid var(--line);
+      padding: 12px 14px;
+    }
+
+    .type-specimen .row {
+      margin: 0 0 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .type-specimen .row:last-of-type {
+      margin: 0;
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .type-specimen .serif {
+      font-family: var(--serif);
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+    }
+
+    .type-specimen .sans { font-size: 1rem; }
+    .type-specimen .nums {
+      font-variant-numeric: tabular-nums;
+      font-size: 1.15rem;
+      letter-spacing: 0.02em;
+      font-family: var(--mono);
+    }
+
+    .type-specimen .meta {
+      margin: 2px 0 0;
+      font-size: 0.7rem;
+      color: var(--faint);
+    }
+
+    .chart-demo {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .plot {
+      background: #fff;
+      border: 1px solid var(--line);
+      padding: 8px 8px 4px;
+      max-width: 420px;
+    }
+
+    .plot svg { display: block; width: 100%; height: auto; }
+
+    .legend { font-size: 0.86rem; }
+    .legend p { max-width: none; margin: 0 0 8px; color: var(--muted); }
+    .legend h3 { margin: 0 0 8px; font-size: 0.95rem; }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0;
+      margin: 8px 0 10px;
+      border: 1px solid var(--line);
+    }
+
+    .dot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 6px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+    }
+
+    .dot i {
+      display: block;
+      width: 10px;
+      height: 10px;
+      flex: 0 0 10px;
+      border: 1px solid transparent;
+    }
+
+    .admin-bar {
+      background: var(--admin-head);
+      color: #f3f5f7;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--serif);
+      font-size: 0.95rem;
+    }
+
+    .admin-bar span { color: #9aa3b0; font-family: var(--sans); font-size: 0.78rem; }
+
+    .vocab td.no { color: var(--muted); font-weight: 400; }
+    .vocab code { border: 1px solid var(--line); padding: 0 3px; }
+
+    .dodont td { width: 50%; font-weight: 400; }
+    .dodont td:first-child { font-weight: 400; white-space: normal; }
+    .dodont ul { margin: 0; padding-left: 1.1em; max-width: none; }
+    .dodont li { font-size: 0.86rem; }
+
+    footer.doc {
+      margin-top: 36px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    footer.doc p { max-width: 46em; margin: 0 0 6px; }
+
+    .fields {
+      margin: 0 0 10px;
+      font-size: 0.82rem;
+    }
+
+    .fields code {
+      border: 1px solid var(--line);
+      padding: 1px 4px;
+    }
+
+    .chart-spec {
+      border: 1px solid var(--line);
+      background: var(--paper);
+      padding: 8px 8px 6px;
+      max-width: 640px;
+    }
+
+    .chart-spec-chrome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      margin: 0 0 6px;
+    }
+
+    .chart-spec-chrome .lbl {
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--faint);
+    }
+
+    .spec-seg {
+      display: inline-flex;
+      border: 1px solid var(--line-strong);
+      background: #fff;
+    }
+
+    .spec-seg span {
+      padding: 3px 9px;
+      border-right: 1px solid var(--line-strong);
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .spec-seg span:last-child { border-right: 0; }
+    .spec-seg span.on {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .chart-spec-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 8.25rem;
+      gap: 4px 10px;
+      align-items: start;
+    }
+
+    .plot-frame {
+      position: relative;
+      min-width: 0;
+      max-width: 460px;
+    }
+
+    .plot-frame svg { display: block; width: 100%; height: auto; }
+
+    .plot-frame .mark { cursor: default; }
+
+    .chart-spec-legend {
+      font-size: 0.68rem;
+      color: var(--muted);
+      padding-top: 4px;
+    }
+
+    .chart-spec-legend p {
+      margin: 0 0 6px;
+      font-size: 0.62rem;
+      max-width: none;
+    }
+
+    .leg-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 4px;
+      color: var(--ink);
+      font-size: 0.7rem;
+    }
+
+    .leg-row i {
+      display: block;
+      width: 8px;
+      height: 8px;
+      flex: 0 0 8px;
+    }
+
+    .leg-row i.hollow {
+      background: #fff;
+      border: 1px solid #2f9e44;
+      box-sizing: border-box;
+    }
+
+    .spec-tip {
+      background: #fff;
+      border: 1px solid var(--line-strong);
+      box-shadow: none;
+      padding: 8px 10px 6px;
+      max-width: 18rem;
+    }
+
+    .spec-tip.float {
+      position: absolute;
+      z-index: 4;
+      min-width: 14rem;
+      max-width: 18rem;
+      pointer-events: none;
+    }
+
+    .spec-tip h3 {
+      margin: 0 0 6px;
+      font-family: var(--sans);
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--faint);
+    }
+
+    .spec-tip .who {
+      margin: 0 0 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+
+    .spec-tip dl {
+      display: grid;
+      grid-template-columns: 6.4em 1fr;
+      gap: 3px 10px;
+      margin: 0 0 8px;
+      font-size: 0.78rem;
+    }
+
+    .spec-tip dt { color: var(--muted); margin: 0; }
+    .spec-tip dd { margin: 0; }
+
+    .spec-tip .unrep-note {
+      margin: 0 0 8px;
+      padding: 0 0 0 8px;
+      border-left: 2px solid var(--accent);
+      color: var(--ink);
+      font-size: 0.75rem;
+    }
+
+    .spec-tip .usage {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 0.75rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .spec-tip .usage li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0;
+      padding: 4px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .spec-tip .reported {
+      margin: 0 0 8px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .tip-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 18rem));
+      gap: 12px;
+      align-items: start;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .jobs-spec {
+      font-size: 0.8rem;
+      margin: 0;
+    }
+
+    .jobs-spec th {
+      text-transform: none;
+      letter-spacing: 0.02em;
+    }
+
+    .jobs-spec th,
+    .jobs-spec td {
+      padding: 8px 10px 8px 0;
+      vertical-align: top;
+    }
+
+    .jobs-spec td:first-child,
+    .jobs-spec th:first-child {
+      font-weight: 400;
+      white-space: nowrap;
+      width: 3rem;
+      padding-left: 14px;
+      padding-right: 12px;
+      vertical-align: top;
+    }
+
+    .jobs-spec th.pick {
+      font-size: 0.68rem;
+    }
+
+    .jobs-spec th.num,
+    .jobs-spec td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 400;
+      white-space: nowrap;
+    }
+
+    .jobs-spec .tick {
+      display: block;
+      width: 12px;
+      height: 12px;
+      margin-top: 4px;
+      border: 1px solid var(--line-strong);
+      background: #fff;
+    }
+
+    .jobs-spec .tick.on {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .jobs-spec .tick.on::after {
+      content: "";
+      display: block;
+      width: 6px;
+      height: 3px;
+      margin: 2px 0 0 2px;
+      border-left: 1.5px solid #fff;
+      border-bottom: 1.5px solid #fff;
+      transform: rotate(-45deg);
+    }
+
+    .jobs-spec .job-name {
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .jobs-spec .jid {
+      display: block;
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      font-weight: 400;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .jobs-spec .unrep {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.68rem;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+    }
+
+    .jobs-spec tbody tr {
+      background: #fff;
+    }
+
+    .jobs-spec tbody tr:hover {
+      background: var(--surface);
+    }
+
+    .jobs-spec tbody tr.is-on {
+      background: var(--surface);
+      box-shadow: inset 2px 0 0 var(--accent);
+    }
+
+    .table-key {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin: 8px 0 0;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .table-key b { color: var(--ink); font-weight: 500; }
+
+    .empty-spec {
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 36px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .empty-spec p { margin: 0 auto; max-width: 36em; }
+
+    @media (max-width: 860px) {
+      .lockups, .chart-demo, .palette, .chart-spec-body, .tip-row, .spec-split { grid-template-columns: 1fr; }
+      .lock-card { border-right: 0; }
+      .lock-card:nth-last-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .lock-card:last-child { border-bottom: 0; }
+      .plot { max-width: none; }
+      td:first-child { white-space: normal; }
+      .tabs [role="tab"] { padding: 8px 10px 7px; font-size: 0.78rem; }
+      .hero-face { min-height: 160px; padding: 16px; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .wrap { padding: 0; }
+      .brand-bar, .hero-face, .tabs [role="tab"][aria-selected="true"] {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+      }
+      .tabbar { position: static; }
+      .panel[hidden] { display: block !important; }
+      .panel { break-inside: avoid; margin-top: 28px; }
+      .spec-tip.float { display: none !important; }
+      a { color: inherit; }
+    }
+  </style>
+</head>
+<body>
+  <div class="brand-bar" aria-hidden="true"></div>
+  <div class="wrap">
+    <header class="mast">
+      <p class="kicker">
+        <span>内部规格 · 严谨但不晦涩 · 学术 / 锐利</span>
+        <span>真源 BRAND.md</span>
+      </p>
+      <p class="lockup">Fenix <span class="word-eval">Eval</span></p>
+      <div class="lockup-rule" aria-hidden="true"></div>
+      <h1>品牌规格</h1>
+      <p class="lede">
+        给前台、后台、README、图表和错误文案对齐用。各节先图后解释。产品事实以需求文档为准。不改契约，不编造分数。不是营销页。
+      </p>
+    </header>
+
+    <div class="tabbar">
+      <div class="tabs" role="tablist" aria-label="品牌规格章节">
+        <button type="button" role="tab" id="tab-name" data-id="name" aria-controls="panel-name" aria-selected="true" tabindex="0">1 名称</button>
+        <button type="button" role="tab" id="tab-identity" data-id="identity" aria-controls="panel-identity" aria-selected="false" tabindex="-1">2 身份</button>
+        <button type="button" role="tab" id="tab-place" data-id="place" aria-controls="panel-place" aria-selected="false" tabindex="-1">3 定位</button>
+        <button type="button" role="tab" id="tab-voice" data-id="voice" aria-controls="panel-voice" aria-selected="false" tabindex="-1">4 语气</button>
+        <button type="button" role="tab" id="tab-visual" data-id="visual" aria-controls="panel-visual" aria-selected="false" tabindex="-1">5 视觉</button>
+        <button type="button" role="tab" id="tab-vocab" data-id="vocab" aria-controls="panel-vocab" aria-selected="false" tabindex="-1">6 用语</button>
+        <button type="button" role="tab" id="tab-rules" data-id="rules" aria-controls="panel-rules" aria-selected="false" tabindex="-1">7 做与不做</button>
+        <button type="button" role="tab" id="tab-chart" data-id="chart" aria-controls="panel-chart" aria-selected="false" tabindex="-1">8 图表</button>
+        <button type="button" role="tab" id="tab-table" data-id="table" aria-controls="panel-table" aria-selected="false" tabindex="-1">9 表格</button>
+      </div>
+    </div>
+
+    <section class="panel" id="panel-name" role="tabpanel" aria-labelledby="tab-name">
+      <p class="sec-label">§1</p>
+      <h2>名称</h2>
+      <figure>
+        <div class="lockups">
+          <article class="lock-card">
+            <p class="where">前台页眉 · 页标题</p>
+            <div class="mini-nav" aria-hidden="true">
+              <span class="mini-brand">Fenix <span class="word-eval">Eval</span></span>
+              <div class="mini-links">
+                <span aria-current="page">榜单</span>
+                <span>对照</span>
+              </div>
+            </div>
+          </article>
+          <article class="lock-card">
+            <p class="where">子页标题</p>
+            <p class="sample">Fenix Eval · 对照</p>
+          </article>
+          <article class="lock-card admin">
+            <p class="where">后台页标题 / 页眉</p>
+            <p class="sample">Fenix Eval · 后台</p>
+          </article>
+          <article class="lock-card log">
+            <p class="where">进程日志前缀</p>
+            <p class="sample">fenix-eval listening on :8080</p>
+          </article>
+        </div>
+        <figcaption><span class="n">图 1.</span>名称怎么写。Eval 用主题蓝。后台顶栏用深底，表示这里能写。</figcaption>
+      </figure>
+      <p>对外产品名：<strong>Fenix Eval</strong>（两词、首字母大写、中间空格）。中文里直接写 Fenix Eval，不要译成「凤凰评测」「飞尼克斯」。不要单独用「Fenix」指这个产品。</p>
+      <p>长文档里第一次出现，可以括注功能通称：Fenix Eval（评测展示服务）。通称可以和产品名一起用，不能互相替换。</p>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>位置</th><th>写法</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>产品名</td><td><code>Fenix Eval</code></td></tr>
+            <tr><td>前台页脚署名</td><td>先写 Fenix Eval，再写不混榜、未报告用量。不要写成 Harbor Hub 或官方榜</td></tr>
+            <tr><td>代码标识符</td><td><code>eval-display</code>、<code>EVAL_DISPLAY_*</code>、Go module <code>evo-harness</code> 不要改。品牌名不要倒灌进环境变量或 Harbor 路径</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="fn">不要用这些当界面名：<s>FenixEval</s>；<s>FENIX EVAL</s>；<s>Fenix-Eval</s>；<s>eval-display</s>（作用户可见产品名）。</p>
+    </section>
+
+    <section class="panel" id="panel-identity" role="tabpanel" aria-labelledby="tab-identity" hidden>
+      <p class="sec-label">§2</p>
+      <h2>一句话身份</h2>
+      <blockquote class="quote">
+        Fenix Eval 收录已经跑完的 Harbor 作业，按 <code>job_id</code> 列出我方榜、完成度和用量。它不是官方 DeepSWE 排名。
+      </blockquote>
+      <p style="margin-top:14px;">完成度 = 该作业已入库 trial 的 <code>reward</code> 均值（只有 0 或 1）。用量 = token、成本、步数五个字段，接口里始终出现。</p>
+      <p>给技术组长和评测执行用：判断私有模型接入 AOS 之后，问题在 AOS 还是客户侧。也可以给 COS 优化和 AOS 引擎背书提供可引用的对照。</p>
+      <p>第 1 层先做到：<strong>有 job/trial id 可查、Pass@1 可复算、用量字段始终出现</strong>。Harbor JSON 里没有的 GPU × 引擎消耗、COS 档位、AOS 编排路径，界面不要猜。不要发明 token、cost、步数、ROI 或 COS SKU。</p>
+    </section>
+
+    <section class="panel" id="panel-place" role="tabpanel" aria-labelledby="tab-place" hidden>
+      <p class="sec-label">§3</p>
+      <h2>相对 Harbor / Pier / DeepSWE 的位置</h2>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>名称</th><th>它是什么</th><th>本产品怎么叫</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Harbor</td><td>评测 runner；官方 CLI 执行和 <code>upload</code></td><td>兼容上传入口，<strong>不是</strong>第二套 runner。不调用 <code>harbor run</code>，不复刻 Hub</td></tr>
+            <tr><td>Pier</td><td>一种执行器；对照包由它产出 Harbor 目录</td><td>写在 overlay 的 runner 里。不要把 Pier 说成本产品</td></tr>
+            <tr><td>DeepSWE 官网榜</td><td>Pier + <code>mini-swe-agent</code> + Modal，另一套协议</td><td><strong>不可比</strong>。Harbor / Peri / COS 作业的完成度不能写成该榜成绩</td></tr>
+            <tr><td>Fenix Eval</td><td>我方结果面：ingest、S3、SQLite、读接口、后台 overlay</td><td>「我方榜」。分数按已入库 trial 自算</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Harbor 作业和官方 Pier / DeepSWE 榜<strong>不可比</strong>。不要把这边的完成度写成那边的成绩。</p>
+      <p class="fn">对照包 <code>deepswe-peri-3142</code> 只用来验收 ingest。69/113、20/44 是该包的实测聚合，不是产品承诺，也不是 Pier 官方榜。对外引用要带 id，并注明不是 Pier 官方算法。<code>incomparability</code> 用来写清为什么不可比，不用来抬高分数。</p>
+    </section>
+
+    <section class="panel" id="panel-voice" role="tabpanel" aria-labelledby="tab-voice" hidden>
+      <p class="sec-label">§4</p>
+      <h2>语气</h2>
+      <p>官方语气：<strong>严谨，但不晦涩。</strong></p>
+      <h3>严谨</h3>
+      <ol class="compact">
+        <li>用书面语。不推销，不用「赋能」「一站式」「领先」。</li>
+        <li>术语固定：完成度、未报告用量、榜单、harness。</li>
+        <li>缺省填的 0 不要写成测得 0。未报告就写未报告；不可比就写不可比。</li>
+        <li>Harbor 作业与官方 Pier / DeepSWE 榜不可比。禁止混榜。</li>
+        <li>完成度的分母是已入库 trial。榜单均值是各作业完成度的算术平均，不是把 trial 混在一起再算。</li>
+      </ol>
+      <h3>不晦涩</h3>
+      <ol class="compact">
+        <li>句子短。先说结论，再补限定。</li>
+        <li>必要术语第一次出现，用一句人话解释。例如：完成度 = 该作业已入库 trial 的 reward 均值。</li>
+        <li>少用「之 / 其 / 所谓」和绕弯的长从句。</li>
+        <li>图表和表的规则写成「要这样做 / 不要那样」，不要写成论文摘要。</li>
+        <li>规格板和界面：先图后解释。宽屏图在左、说明在右，不要让右栏空着。</li>
+      </ol>
+      <p class="fn">错误文案示例：<code>后台令牌无效或未填写。</code> Harbor 面保留 <code>PGRST202</code> 等 CLI 标识。后台删除要写清不可恢复。不要用「Oops」。</p>
+    </section>
+
+    <section class="panel" id="panel-visual" role="tabpanel" aria-labelledby="tab-visual" hidden>
+      <p class="sec-label">§5</p>
+      <h2>视觉</h2>
+      <figure class="hero-swatch">
+        <div class="hero-face">
+          <span class="hero-kicker">主题色</span>
+          <span class="hero-hex">#1b4f9a</span>
+          <span class="hero-meta">--accent · RGB 27 79 154</span>
+        </div>
+        <figcaption><span class="n">图 2.</span>主题蓝。用在顶栏细条、选中标签、名称里的 Eval、链接和「未报告」标记。页底是白。不要把整页铺成蓝色。</figcaption>
+      </figure>
+      <p>调性：学术、锐利、严格、可视化。这是排版，不是让文案掉书袋。主题色是蓝 <code>#1b4f9a</code>。页底是白，灰做辅助文字和分割。蓝只做切边（顶栏细条、选中标签、下划线、左边线），不要半透明铺底。绿色 <code>#2f9e44</code> 只用于散点「右上更优」的底，不是品牌主色。不要画凤凰或火焰。栏宽约 <code>1120px</code>。</p>
+
+      <h3>5.1 前台（默认）</h3>
+
+      <div class="scroll">
+        <table class="token">
+          <thead>
+            <tr><th>角色</th><th>色值</th><th>变量</th><th>用途</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>主题色</td>
+              <td class="mono"><span class="sw" style="background:#1b4f9a;border-color:#1b4f9a;"></span>#1b4f9a</td>
+              <td class="mono">--accent</td>
+              <td>切边与强调；见图 2</td>
+            </tr>
+            <tr>
+              <td>页底</td>
+              <td class="mono"><span class="sw" style="background:#ffffff;"></span>#ffffff</td>
+              <td class="mono">--bg / --paper</td>
+              <td>页面与卡片</td>
+            </tr>
+            <tr>
+              <td>辅助底</td>
+              <td class="mono"><span class="sw" style="background:#f3f5f7;"></span>#f3f5f7</td>
+              <td class="mono">--surface</td>
+              <td>弱底、次级表面</td>
+            </tr>
+            <tr>
+              <td>正文</td>
+              <td class="mono"><span class="sw ink" style="background:#2c333c;"></span>#2c333c</td>
+              <td class="mono">--ink</td>
+              <td>正文</td>
+            </tr>
+            <tr>
+              <td>辅助文字</td>
+              <td class="mono"><span class="sw" style="background:#6a727c;"></span>#6a727c / #8b929c</td>
+              <td class="mono">--muted / --faint</td>
+              <td>说明、标签、轴文字</td>
+            </tr>
+            <tr>
+              <td>分割</td>
+              <td class="mono"><span class="sw line"></span>#e2e5e9 / #c9ced6</td>
+              <td class="mono">--line</td>
+              <td>细线、发丝网格</td>
+            </tr>
+            <tr>
+              <td>图表语义</td>
+              <td class="mono"><span class="sw" style="background:#2f5d3a;border-color:#2f5d3a;"></span>#2f5d3a</td>
+              <td class="mono">--ok</td>
+              <td>trial 通过字色</td>
+            </tr>
+            <tr>
+              <td>图表语义</td>
+              <td class="mono"><span class="sw" style="background:rgba(47,158,68,0.12);"></span>#2f9e44 · 约 12%</td>
+              <td class="mono">更优区</td>
+              <td>散点右上角的底。表示更优，不是品牌主色</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fn">不要把更优区的绿、或 harness 循环色，当作品牌主色。</p>
+
+      <figure>
+        <div class="type-specimen">
+          <div class="row">
+            <div class="serif">完成度与对照</div>
+            <p class="meta">标题 · "Iowan Old Style", Palatino, "Songti SC", serif</p>
+          </div>
+          <div class="row">
+            <div class="sans">一行一个 job_id，不混榜。</div>
+            <p class="meta">正文 · "Avenir Next", "Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif</p>
+          </div>
+          <div class="row">
+            <div class="nums">0123456789  #1b4f9a</div>
+            <p class="meta">数字与色值 · tabular-nums · 等宽</p>
+          </div>
+        </div>
+        <figcaption><span class="n">图 3.</span>字体样张。栏宽约 1120px。</figcaption>
+      </figure>
+      <h3>字体</h3>
+      <p>标题用衬线，正文用无衬线，数字用等宽表列。</p>
+
+      <h3>5.2 散点与 harness 色</h3>
+      <div class="chart-demo">
+        <figure class="plot">
+          <svg viewBox="0 0 260 200" role="img" aria-labelledby="plot-title plot-desc">
+            <title id="plot-title">散点示意：右上更优</title>
+            <desc id="plot-desc">纵轴是完成度，向上更高。横轴消耗向右更少。右上更好。空心点表示未报告用量。点位是编的，不是实测。</desc>
+            <rect x="132" y="18" width="92" height="92" fill="rgba(47,158,68,0.12)" />
+            <text x="178" y="34" text-anchor="middle" fill="#2f5d3a" font-size="9" font-family="Avenir Next, Helvetica Neue, PingFang SC, sans-serif">右上更优</text>
+            <line x1="28" y1="168" x2="232" y2="168" stroke="#c9ced6" stroke-width="1" />
+            <line x1="28" y1="168" x2="28" y2="14" stroke="#c9ced6" stroke-width="1" />
+            <polygon points="28,14 25,22 31,22" fill="#8b929c" />
+            <polygon points="232,168 224,165 224,171" fill="#8b929c" />
+            <text x="10" y="96" fill="#8b929c" font-size="8" font-family="Avenir Next, Helvetica Neue, PingFang SC, sans-serif" transform="rotate(-90 10 96)">Y 完成度</text>
+            <text x="130" y="188" text-anchor="middle" fill="#8b929c" font-size="8" font-family="Avenir Next, Helvetica Neue, PingFang SC, sans-serif">X 消耗（向右更少）</text>
+            <rect x="58" y="118" width="6" height="6" fill="#7950f2" />
+            <rect x="96" y="88" width="6" height="6" fill="#f76707" />
+            <rect x="148" y="48" width="6" height="6" fill="#2f9e44" />
+            <rect x="188" y="38" width="6" height="6" fill="#1c7ed6" />
+            <rect x="214" y="148" width="6" height="6" fill="none" stroke="#2c333c" stroke-width="1.2" />
+            <text x="222" y="142" fill="#6a727c" font-size="8" font-family="Avenir Next, Helvetica Neue, PingFang SC, sans-serif" text-anchor="end">未报告</text>
+          </svg>
+          <figcaption><span class="n">图 4.</span>坐标怎么读（示意，不是实测）。完整样子见图 6、图 7。</figcaption>
+        </figure>
+        <aside class="legend">
+          <h3>规则</h3>
+          <ul class="compact">
+            <li>一个点 = 一对 model · harness。harness 就是 agent（<code>agent_name</code>）。</li>
+            <li>颜色按 harness 分，不按完成度渐变。主题蓝不要拿来给点上色。</li>
+            <li>绿点仍表示 harness，不表示「更好」。更好只看坐标和右上那块底。</li>
+            <li>未报告用量：空心方点，落在最右边。不要当成测得 0。详情只在悬停时出现。禁止混榜。</li>
+          </ul>
+          <p><a href="#chart">第 8 节</a>写图。<a href="#table">第 9 节</a>写表。</p>
+          <div class="palette" aria-label="harness 调色板">
+            <span class="dot"><i style="background:#2f9e44"></i>#2f9e44</span>
+            <span class="dot"><i style="background:#f76707"></i>#f76707</span>
+            <span class="dot"><i style="background:#7950f2"></i>#7950f2</span>
+            <span class="dot"><i style="background:#1c7ed6"></i>#1c7ed6</span>
+            <span class="dot"><i style="background:#e03131"></i>#e03131</span>
+            <span class="dot"><i style="background:#0c8599"></i>#0c8599</span>
+            <span class="dot"><i style="background:#ae3ec9"></i>#ae3ec9</span>
+            <span class="dot"><i style="background:#7048e8"></i>#7048e8</span>
+          </div>
+        </aside>
+      </div>
+
+      <h3>5.3 后台</h3>
+      <figure>
+        <div class="admin-bar">
+          <strong>Fenix Eval · 后台</strong>
+          <span>这里能写 · 顶栏深底</span>
+        </div>
+        <figcaption><span class="n">图 5.</span>后台顶栏。白底灰线和前台一样，强调色仍是 <code>#1b4f9a</code>。删除用 <code>#9b2c2c</code>，不要用主题蓝。</figcaption>
+      </figure>
+    </section>
+
+    <section class="panel" id="panel-vocab" role="tabpanel" aria-labelledby="tab-vocab" hidden>
+      <p class="sec-label">§6</p>
+      <h2>界面用语</h2>
+      <div class="scroll">
+        <table class="vocab">
+          <thead>
+            <tr><th>词</th><th>人话</th><th>不用</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>完成度</td><td>该作业已入库 trial 的 reward 均值。图上是纵轴</td><td class="no">「效果」「能力」「表现分」</td></tr>
+            <tr><td>Pass@1</td><td>和完成度同一个意思；<code>reward</code> 只有 0 或 1</td><td class="no">官方榜 Pass@1；把不同作业 trial 混在一起再算</td></tr>
+            <tr><td>榜单</td><td>按作业名分开的一页；一行一个 <code>job_id</code></td><td class="no">用 leaderboard 当中文标题；把多份作业合成一条榜</td></tr>
+            <tr><td>对照</td><td>两个 job 并排看</td><td class="no">「PK」「对决」</td></tr>
+            <tr><td>harness</td><td>执行这道题的 agent，字段是 <code>agent_name</code></td><td class="no">用对照包里为 null 的 <code>config.agent.name</code></td></tr>
+            <tr><td>agent / model</td><td>身份列；以 <code>agent_info</code> / <code>model_info</code> 为准</td><td class="no">用 COS 档位名冒充 model</td></tr>
+            <tr><td>未报告 / 未报告用量</td><td>源没给用量。库里的 0 是填空</td><td class="no">「测得 0」「零消耗」「零成本」</td></tr>
+            <tr><td>用量</td><td>五个字段，一个都不能少</td><td class="no">省略字段；用 peri.txt 或 overlay 冒充步数</td></tr>
+            <tr><td>作业 / trial</td><td>Harbor 的 job / trial</td><td class="no">「实验」「session」</td></tr>
+            <tr><td>签字 / unsigned</td><td>overlay 的 <code>attestation</code></td><td class="no">「已认证官方」</td></tr>
+            <tr><td>不可比说明</td><td>overlay 的 <code>incomparability</code></td><td class="no">删掉这一行，让它看起来像官方榜</td></tr>
+            <tr><td>前台可见</td><td><code>listed</code></td><td class="no">「发布到官网」</td></tr>
+            <tr><td>H 型 / M 型</td><td>harness 对照 vs 模型/部署档对照；<code>job_type</code> 可空</td><td class="no">没声明就把差值算在 COS 优化上</td></tr>
+            <tr><td>后台</td><td><code>/admin/</code>：overlay、健康、删除</td><td class="no">「控制台运营中心」</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>按下表用词。字段名在 API 里保持原文。用量五个字段始终列出：</p>
+      <p class="fields">
+        <code>n_input_tokens</code>
+        <code>n_cache_tokens</code>
+        <code>n_output_tokens</code>
+        <code>cost_usd</code>
+        <code>n_agent_steps</code>
+      </p>
+      <p class="fn">榜单名称取自作业名。<code>peri-3142-full</code> 和 fail44 必须分开。页脚和空态写明：不提供 peri.txt / ATIF 会话查看。</p>
+    </section>
+
+    <section class="panel" id="panel-rules" role="tabpanel" aria-labelledby="tab-rules" hidden>
+      <p class="sec-label">§7</p>
+      <h2>做 / 不做</h2>
+      <div class="scroll">
+        <table class="dodont">
+          <thead>
+            <tr><th>做</th><th>不做</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <ul>
+                  <li>用户可见名称用 Fenix Eval。契约仍写 Harbor 兼容、S3/RustFS、SQLite。</li>
+                  <li>文案严谨但不晦涩：术语固定，句子短，必要术语先用人话解释。</li>
+                  <li>图和文案一起说清：完成度怎么算、横轴向右更少、空心点是未报告、不混榜。规格板先图后解释。</li>
+                  <li>用量五个字段始终出现。未报告和测得的 0 用 <code>usage_reported</code> 区分。</li>
+                  <li>引用数字时带 id，并写清不可比。后台区分「尚未 finalize」和「已在榜」。</li>
+                </ul>
+              </td>
+              <td>
+                <ul>
+                  <li>自称官方 Pier / DeepSWE 榜，或把 Harbor 作业和官网榜排在一起。</li>
+                  <li>发明 token、cost、步数、ROI，或用其它 job 均值、草稿 HTML 示意值去填。</li>
+                  <li>发明 COS SKU、GPU 消耗、引擎质量评语。</li>
+                  <li>把 peri-3142-full 和 fail44 合成一行。</li>
+                  <li>用「效果」代替完成度；把缺省 0 写成测得零消耗。</li>
+                  <li>营销口吻、吉祥物、为品牌去改 <code>EVAL_DISPLAY_*</code>。</li>
+                  <li>点旁常驻分数气泡、糖果阴影、斑马纹表、用品牌蓝给点上色。</li>
+                  <li>把本页示意图点位或表行当成实测或官方榜。</li>
+                </ul>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-chart" role="tabpanel" aria-labelledby="tab-chart" hidden>
+      <p class="sec-label">§8</p>
+      <h2>图表</h2>
+      <div class="spec-split">
+      <figure>
+        <div class="chart-spec">
+          <div class="chart-spec-chrome">
+            <span class="lbl">X 轴</span>
+            <div class="spec-seg" role="group" aria-label="X 轴分段标本，本图点位固定为 step">
+              <span class="on">step</span>
+              <span>cost</span>
+              <span>token</span>
+            </div>
+          </div>
+          <div class="chart-spec-body">
+            <div class="plot-frame" id="plot-frame">
+              <svg viewBox="0 0 420 308" role="img" aria-labelledby="fig6-title fig6-desc">
+                <title id="fig6-title">散点示意图：完成度对照，右上更优</title>
+                <desc id="fig6-desc">编出来的三个点。纵轴是完成度。横轴步数向右更少。右上更好。空心点是未报告用量。不是实测。</desc>
+                <rect x="269" y="22" width="133" height="100.8" fill="rgba(47,158,68,0.12)" />
+                <text x="335" y="38" text-anchor="middle" fill="#2f5d3a" font-size="9" font-family="Avenir Next, Helvetica Neue, PingFang SC, sans-serif">右上更优</text>
+                <g stroke="#e2e5e9" stroke-width="1" fill="none">
+                  <line x1="52" y1="22" x2="402" y2="22" />
+                  <line x1="52" y1="82" x2="402" y2="82" />
+                  <line x1="52" y1="142" x2="402" y2="142" />
+                  <line x1="52" y1="202" x2="402" y2="202" />
+                  <line x1="52" y1="262" x2="402" y2="262" />
+                  <line x1="52" y1="22" x2="52" y2="262" />
+                  <line x1="139.5" y1="22" x2="139.5" y2="262" />
+                  <line x1="227" y1="22" x2="227" y2="262" />
+                  <line x1="314.5" y1="22" x2="314.5" y2="262" />
+                  <line x1="402" y1="22" x2="402" y2="262" />
+                </g>
+                <g stroke="#c9ced6" stroke-width="1" fill="none">
+                  <line x1="52" y1="262" x2="402" y2="262" />
+                  <line x1="52" y1="262" x2="52" y2="22" />
+                </g>
+                <g fill="#8b929c" font-size="9" font-family="Avenir Next, Helvetica Neue, PingFang SC, sans-serif" font-variant-numeric="tabular-nums">
+                  <text x="46" y="26" text-anchor="end">100%</text>
+                  <text x="46" y="86" text-anchor="end">75%</text>
+                  <text x="46" y="146" text-anchor="end">50%</text>
+                  <text x="46" y="206" text-anchor="end">25%</text>
+                  <text x="46" y="266" text-anchor="end">0%</text>
+                  <text x="402" y="276" text-anchor="middle">0</text>
+                  <text x="314.5" y="276" text-anchor="middle">25</text>
+                  <text x="227" y="276" text-anchor="middle">50</text>
+                  <text x="139.5" y="276" text-anchor="middle">75</text>
+                  <text x="52" y="276" text-anchor="middle">100</text>
+                  <text x="14" y="142" text-anchor="middle" transform="rotate(-90 14 142)">完成度</text>
+                  <text x="227" y="296" text-anchor="middle">步数（向右更少）</text>
+                  <text x="60" y="254">示意图 · 非实测</text>
+                </g>
+                <g id="demo-marks">
+                  <g data-job="demo-job-01">
+                    <rect class="hit" x="295" y="104" width="18" height="18" fill="transparent" />
+                    <rect class="mark" x="300.5" y="109.7" width="7" height="7" fill="#2f9e44" />
+                  </g>
+                  <g data-job="demo-job-02">
+                    <rect class="hit" x="200.5" y="137.8" width="18" height="18" fill="transparent" />
+                    <rect class="mark" x="206" y="143.3" width="7" height="7" fill="#f76707" />
+                  </g>
+                  <g data-job="demo-job-03">
+                    <rect class="hit" x="390" y="157" width="18" height="18" fill="transparent" />
+                    <rect class="mark" x="395" y="162.5" width="7" height="7" fill="#ffffff" stroke="#2f9e44" stroke-width="1.2" />
+                  </g>
+                </g>
+              </svg>
+              <div class="spec-tip float" id="spec-tip" hidden></div>
+            </div>
+            <aside class="chart-spec-legend">
+              <div class="leg-row"><i style="background:#2f9e44"></i>demo-harness-a</div>
+              <div class="leg-row"><i style="background:#f76707"></i>demo-harness-b</div>
+              <div class="leg-row"><i class="hollow"></i>未报告用量</div>
+            </aside>
+          </div>
+        </div>
+        <figcaption><span class="n">图 6.</span>散点示意图。同一虚构榜 <code>demo-board-a</code>，三个点对应图 8 三行。平时没有常驻标注；把指针移到方点上可以看详情。X 轴分段只是控件样子，本图点位按 step 画。点位不是实测。</figcaption>
+      </figure>
+      <div class="spec-copy">
+      <p>首页散点叫「完成度对照」。完成度 = 该作业已入库 trial 的 reward 均值。以后同类型的图也按本节做。图 6、图 7 的点是编的，不要当成 Harbor / Fenix 实测，不要抄官方榜或对照包 69/113、20/44，不要发明 COS SKU。</p>
+      <h3>要这样做</h3>
+      <ol class="compact">
+        <li><strong>纵轴是完成度，</strong>向上更高。刻度写成百分数。</li>
+        <li><strong>横轴是 step / cost / token，方向反过来。</strong>原始值向右更少，所以右上更好。step 用步数，cost 用美元，token 用三个 token 字段相加。</li>
+        <li><strong>颜色表示 harness，一个点表示一对 model + harness。</strong>harness 就是 agent。主题蓝不要拿来给点上色。</li>
+        <li><strong>详情只在悬停时出现。</strong>不要在点旁边常驻分数。</li>
+        <li><strong>未报告用量画空心方点，</strong>落在最右边。写「未报告用量」，不要写成测得 0。</li>
+        <li><strong>一图只画当前榜单。</strong><code>peri-3142-full</code> 和 fail44 必须分开画。</li>
+        <li><strong>方点、1px 浅灰网格、没有阴影。</strong>更优区只用绿底 <code>#2f9e44</code>、约 12% 透明。图例放在图外右侧。</li>
+        <li><strong>悬停卡片：</strong>白底、细线、没有阴影。未报告时写清：下面的 0 是源没给，不是测得的 0。</li>
+        <li><strong>X 轴分段</strong>（step / cost / token）选中时用主题蓝底白字。这是控件，不是点的颜色。</li>
+      </ol>
+      <h3>不要那样</h3>
+      <ul class="compact">
+        <li>不要用「效果」当轴名。不要按完成度做颜色渐变。</li>
+        <li>不要混榜。不要用点的大小表示 trial 数。不要加趋势线或动画。</li>
+        <li>不要软阴影、圆角糖果点、虚线仪表盘网格。不要用品牌蓝铺更优区。</li>
+      </ul>
+      </div>
+      </div>
+
+      <figure>
+        <div class="tip-row">
+          <div class="spec-tip">
+            <h3>详情</h3>
+            <p class="who">demo-model-a · demo-harness-a</p>
+            <dl>
+              <dt>榜单</dt><dd>demo-board-a</dd>
+              <dt>harness</dt><dd>demo-harness-a</dd>
+              <dt>model</dt><dd>demo-model-a</dd>
+              <dt>完成度</dt><dd>62.0%（Pass@1 = 31/50）</dd>
+              <dt>n_trials</dt><dd>50</dd>
+              <dt>step</dt><dd>28</dd>
+            </dl>
+            <p class="reported">已报告用量</p>
+            <ul class="usage">
+              <li><span>n_input_tokens</span><span>12000</span></li>
+              <li><span>n_cache_tokens</span><span>800</span></li>
+              <li><span>n_output_tokens</span><span>3100</span></li>
+              <li><span>cost_usd</span><span>1.25</span></li>
+              <li><span>n_agent_steps</span><span>28</span></li>
+            </ul>
+          </div>
+          <div class="spec-tip">
+            <h3>详情</h3>
+            <p class="who">demo-model-c · demo-harness-a</p>
+            <dl>
+              <dt>榜单</dt><dd>demo-board-a</dd>
+              <dt>harness</dt><dd>demo-harness-a</dd>
+              <dt>model</dt><dd>demo-model-c</dd>
+              <dt>完成度</dt><dd>40.0%（Pass@1 = 8/20）</dd>
+              <dt>n_trials</dt><dd>20</dd>
+              <dt>step</dt><dd>0</dd>
+            </dl>
+            <p class="unrep-note">未报告用量：下面的 0 是源没给，不是测得的 0。</p>
+            <ul class="usage">
+              <li><span>n_input_tokens</span><span>0</span></li>
+              <li><span>n_cache_tokens</span><span>0</span></li>
+              <li><span>n_output_tokens</span><span>0</span></li>
+              <li><span>cost_usd</span><span>0</span></li>
+              <li><span>n_agent_steps</span><span>0</span></li>
+            </ul>
+          </div>
+        </div>
+        <figcaption><span class="n">图 7.</span>悬停卡片样子：白底、细线、没有阴影。左是已报告用量，右是未报告。平时不出现；这是展开示意。</figcaption>
+      </figure>
+    </section>
+
+    <section class="panel" id="panel-table" role="tabpanel" aria-labelledby="tab-table" hidden>
+      <p class="sec-label">§9</p>
+      <h2>表格</h2>
+      <figure>
+        <div class="scroll">
+          <table class="jobs-spec">
+            <thead>
+              <tr>
+                <th class="pick">对照</th>
+                <th>作业</th>
+                <th>harness</th>
+                <th>model</th>
+                <th class="num">完成度</th>
+                <th class="num">n_trials</th>
+                <th class="num">n_input_tokens</th>
+                <th class="num">n_cache_tokens</th>
+                <th class="num">n_output_tokens</th>
+                <th class="num">cost_usd</th>
+                <th class="num">n_agent_steps</th>
+                <th>签字</th>
+                <th>执行器</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="is-on">
+                <td class="pick"><span class="tick on" role="img" aria-label="已勾选对照"></span></td>
+                <td><span class="job-name">demo-run-flash</span><span class="jid">demo-job-01</span></td>
+                <td>demo-harness-a</td>
+                <td>demo-model-a</td>
+                <td class="num">31/50 · 62.0%</td>
+                <td class="num">50</td>
+                <td class="num">12000</td>
+                <td class="num">800</td>
+                <td class="num">3100</td>
+                <td class="num">1.25</td>
+                <td class="num">28</td>
+                <td>unsigned</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="pick"><span class="tick" role="img" aria-label="未勾选对照"></span></td>
+                <td><span class="job-name">demo-run-chat</span><span class="jid">demo-job-02</span></td>
+                <td>demo-harness-b</td>
+                <td>demo-model-b</td>
+                <td class="num">24/50 · 48.0%</td>
+                <td class="num">50</td>
+                <td class="num">18600</td>
+                <td class="num">0</td>
+                <td class="num">4200</td>
+                <td class="num">2.10</td>
+                <td class="num">55</td>
+                <td>unsigned</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="pick"><span class="tick" role="img" aria-label="未勾选对照"></span></td>
+                <td><span class="job-name">demo-run-null-usage</span><span class="jid">demo-job-03</span></td>
+                <td>demo-harness-a</td>
+                <td>demo-model-c</td>
+                <td class="num">8/20 · 40.0%</td>
+                <td class="num">20</td>
+                <td class="num">0<span class="unrep">未报告</span></td>
+                <td class="num">0<span class="unrep">未报告</span></td>
+                <td class="num">0<span class="unrep">未报告</span></td>
+                <td class="num">0<span class="unrep">未报告</span></td>
+                <td class="num">0<span class="unrep">未报告</span></td>
+                <td>unsigned</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-key">
+          <span>本表属于榜单 <code>demo-board-a</code>（榜单在页顶标签，不在每行重复）。</span>
+          <span>对照列与作业名第一行对齐；勾选框不贴选中左边线。第一行已勾选。</span>
+          <span>第三行未报告用量：0 仍列出。</span>
+        </p>
+        <figcaption><span class="n">图 8.</span>前台作业表示意，列与线上榜单表一致。三行都是编的。文本左齐，数字右齐。不要进度条。不是实测，也不是官方榜。</figcaption>
+      </figure>
+
+      <figure>
+        <div class="empty-spec">
+          <p>还没有已完成且未隐藏的作业。请用 Harbor CLI 上传后再刷新。</p>
+        </div>
+        <figcaption><span class="n">图 9.</span>表的空态。写一句人话即可，不要插画，不要用空表头充数。后台写「还没有 hub_job。」</figcaption>
+      </figure>
+      <p>前台作业表和后台列表按本节做。表是用来读数的，不是仪表盘卡片。白底、灰线、紧凑、直角。蓝只用在可点击的地方。图 8 与线上榜单表同一套列：勾选、作业、harness、model、完成度、用量、签字、执行器。三行和图 6 是同一套编出来的作业，不要当成实测榜。</p>
+      <h3>要这样做</h3>
+      <ol class="compact">
+        <li>列和线上榜单表对齐：对照勾选、作业（名 + id）、harness、model、完成度、trial 数、用量五个字段、签字、执行器。榜单名称只出现在页顶标签，不要每行重复。</li>
+        <li>未报告用量不要单开列：数字仍显示 0，格子里标「未报告」。</li>
+        <li>文本左齐，数字右齐。表头浅灰，行间 1px 细线。悬停用极浅灰 <code>#f3f5f7</code>。选中行加 2px 蓝左边线。</li>
+        <li>空态写一句人话，不要插画。前台：「还没有已完成且未隐藏的作业。请用 Harbor CLI 上传后再刷新。」</li>
+        <li>一行一个 <code>job_id</code>。表只含当前榜单。后台删除按钮用 <code>#9b2c2c</code>。</li>
+      </ol>
+      <h3>不要那样</h3>
+      <ul class="compact">
+        <li>不要斑马纹，不要用半透明蓝铺行。</li>
+        <li>不要把 peri-3142-full 和 fail44 合成一张表。</li>
+        <li>未报告时不要删列、不要改成「—」、不要写成「测得 0」。</li>
+        <li>完成度不要用粗进度条。不要给表加卡片阴影。</li>
+      </ul>
+    </section>
+
+    <footer class="doc">
+      <p>注 1. 产品事实仍以需求与设计文档为准。</p>
+      <p>注 2. 改规格以仓库根目录 <code>BRAND.md</code> 为准。本页是展示面。</p>
+    </footer>
+  </div>
+  <script>
+    (function () {
+      var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+      var panels = Array.prototype.slice.call(document.querySelectorAll('[role="tabpanel"]'));
+      var ids = tabs.map(function (t) { return t.getAttribute("data-id"); });
+
+      function select(id, pushHash) {
+        if (ids.indexOf(id) === -1) id = "name";
+        tabs.forEach(function (tab) {
+          var on = tab.getAttribute("data-id") === id;
+          tab.setAttribute("aria-selected", on ? "true" : "false");
+          tab.tabIndex = on ? 0 : -1;
+        });
+        panels.forEach(function (panel) {
+          var on = panel.id === "panel-" + id;
+          if (on) panel.removeAttribute("hidden");
+          else panel.setAttribute("hidden", "");
+        });
+        if (pushHash) {
+          var next = "#" + id;
+          if (history.replaceState) history.replaceState(null, "", next);
+          else location.hash = id;
+        }
+      }
+
+      function fromHash() {
+        var raw = (location.hash || "#name").replace(/^#/, "");
+        select(raw, false);
+      }
+
+      tabs.forEach(function (tab) {
+        tab.addEventListener("click", function () {
+          select(tab.getAttribute("data-id"), true);
+        });
+        tab.addEventListener("keydown", function (e) {
+          var i = ids.indexOf(tab.getAttribute("data-id"));
+          var next = i;
+          if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (i + 1) % tabs.length;
+          else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (i - 1 + tabs.length) % tabs.length;
+          else if (e.key === "Home") next = 0;
+          else if (e.key === "End") next = tabs.length - 1;
+          else return;
+          e.preventDefault();
+          select(ids[next], true);
+          tabs[next].focus();
+        });
+      });
+
+      window.addEventListener("hashchange", fromHash);
+      fromHash();
+    })();
+
+    (function () {
+      var frame = document.getElementById("plot-frame");
+      var tip = document.getElementById("spec-tip");
+      if (!frame || !tip) return;
+
+      function card(who, rows, noteClass, note) {
+        var i, html = "<h3>详情</h3><p class=\"who\">" + who + "</p><dl>";
+        for (i = 0; i < rows.length; i++) {
+          html += "<dt>" + rows[i][0] + "</dt><dd>" + rows[i][1] + "</dd>";
+        }
+        html += "</dl><p class=\"" + noteClass + "\">" + note + "</p>";
+        return html;
+      }
+
+      var usage = function (a, b, c, d, e) {
+        return (
+          "<ul class=\"usage\">" +
+          "<li><span>n_input_tokens</span><span>" + a + "</span></li>" +
+          "<li><span>n_cache_tokens</span><span>" + b + "</span></li>" +
+          "<li><span>n_output_tokens</span><span>" + c + "</span></li>" +
+          "<li><span>cost_usd</span><span>" + d + "</span></li>" +
+          "<li><span>n_agent_steps</span><span>" + e + "</span></li>" +
+          "</ul>"
+        );
+      };
+
+      var html = {
+        "demo-job-01":
+          card("demo-model-a · demo-harness-a", [
+            ["榜单", "demo-board-a"],
+            ["harness", "demo-harness-a"],
+            ["model", "demo-model-a"],
+            ["完成度", "62.0%（Pass@1 = 31/50）"],
+            ["n_trials", "50"],
+            ["step", "28"]
+          ], "reported", "已报告用量") + usage("12000", "800", "3100", "1.25", "28"),
+        "demo-job-02":
+          card("demo-model-b · demo-harness-b", [
+            ["榜单", "demo-board-a"],
+            ["harness", "demo-harness-b"],
+            ["model", "demo-model-b"],
+            ["完成度", "48.0%（Pass@1 = 24/50）"],
+            ["n_trials", "50"],
+            ["step", "55"]
+          ], "reported", "已报告用量") + usage("18600", "0", "4200", "2.10", "55"),
+        "demo-job-03":
+          card("demo-model-c · demo-harness-a", [
+            ["榜单", "demo-board-a"],
+            ["harness", "demo-harness-a"],
+            ["model", "demo-model-c"],
+            ["完成度", "40.0%（Pass@1 = 8/20）"],
+            ["n_trials", "20"],
+            ["step", "0"]
+          ], "unrep-note", "未报告用量：下面的 0 是源没给，不是测得的 0。") + usage("0", "0", "0", "0", "0")
+      };
+
+      function hide() {
+        tip.hidden = true;
+      }
+
+      function show(id, ev) {
+        if (!html[id]) return;
+        if (tip.getAttribute("data-job") !== id) {
+          tip.innerHTML = html[id];
+          tip.setAttribute("data-job", id);
+        }
+        tip.hidden = false;
+        var fr = frame.getBoundingClientRect();
+        var x = ev.clientX - fr.left + 12;
+        var y = ev.clientY - fr.top;
+        var maxL = Math.max(8, frame.clientWidth - tip.offsetWidth - 8);
+        var left = Math.max(8, Math.min(x, maxL));
+        var top = y - tip.offsetHeight - 10;
+        if (top < 8) top = y + 16;
+        var maxT = Math.max(8, frame.clientHeight - tip.offsetHeight - 8);
+        tip.style.left = left + "px";
+        tip.style.top = Math.max(8, Math.min(top, maxT)) + "px";
+      }
+
+      var marks = frame.querySelectorAll("[data-job]");
+      Array.prototype.forEach.call(marks, function (el) {
+        el.addEventListener("mouseenter", function (e) {
+          show(el.getAttribute("data-job"), e);
+        });
+        el.addEventListener("mousemove", function (e) {
+          if (!tip.hidden) show(el.getAttribute("data-job"), e);
+        });
+        el.addEventListener("mouseleave", hide);
+      });
+    })();
+  </script>
+</body>
+</html>

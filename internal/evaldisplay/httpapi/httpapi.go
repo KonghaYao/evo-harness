@@ -125,7 +125,9 @@ func Register(h *server.Hertz, d Deps) {
 
 	h.DELETE("/v1/admin/jobs/:job_id", func(ctx context.Context, c *app.RequestContext) {
 		jobID := c.Param("job_id")
-		res, err := d.Store.DeleteJob(ctx, jobID)
+		// Object prefixes first, then SQLite. If S3 fails, analysis/hub rows stay so the
+		// operator can retry; missing objects on retry are ignored by DeletePrefix.
+		plan, err := d.Store.PlanJobDelete(ctx, jobID)
 		if errors.Is(err, store.ErrNotFound) {
 			writeErr(c, 404, "job_not_found", "job not found", nil)
 			return
@@ -134,10 +136,22 @@ func Register(h *server.Hertz, d Deps) {
 			writeErr(c, 500, "internal", err.Error(), nil)
 			return
 		}
-		if d.Objects != nil && res != nil {
-			for _, p := range res.Prefixes {
-				_ = d.Objects.DeletePrefix(ctx, p)
+		if d.Objects != nil && plan != nil {
+			for _, p := range plan.Prefixes {
+				if err := d.Objects.DeletePrefix(ctx, p); err != nil {
+					writeErr(c, 500, "s3_delete_failed", "删除对象存储失败，分析表未改动", nil)
+					return
+				}
 			}
+		}
+		_, err = d.Store.DeleteJob(ctx, jobID)
+		if errors.Is(err, store.ErrNotFound) {
+			c.JSON(200, map[string]any{"job_id": jobID, "deleted": true})
+			return
+		}
+		if err != nil {
+			writeErr(c, 500, "internal", err.Error(), nil)
+			return
 		}
 		c.JSON(200, map[string]any{"job_id": jobID, "deleted": true})
 	})

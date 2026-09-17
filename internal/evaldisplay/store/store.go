@@ -1149,7 +1149,9 @@ type DeleteJobResult struct {
 	Prefixes []string
 }
 
-func (s *Store) DeleteJob(ctx context.Context, jobID string) (*DeleteJobResult, error) {
+// PlanJobDelete lists object prefixes for a Harbor job UUID without writing.
+// Returns ErrNotFound when neither hub_job nor the analysis jobs row exists.
+func (s *Store) PlanJobDelete(ctx context.Context, jobID string) (*DeleteJobResult, error) {
 	hub, hubErr := GetHubJob(ctx, s.DB, jobID)
 	aj, ajErr := s.GetAnalysisJob(ctx, jobID)
 	if errors.Is(hubErr, ErrNotFound) && errors.Is(ajErr, ErrNotFound) {
@@ -1197,11 +1199,33 @@ func (s *Store) DeleteJob(ctx context.Context, jobID string) (*DeleteJobResult, 
 			}
 		}
 	}
-	err := s.Write(ctx, func(ctx context.Context, tx *sql.Tx) error {
+	out := &DeleteJobResult{}
+	for p := range prefixes {
+		out.Prefixes = append(out.Prefixes, p)
+	}
+	sort.Strings(out.Prefixes)
+	return out, nil
+}
+
+// DeleteJob removes analysis rows (jobs, trials, overlay), hub_job / hub_trial
+// and hub_trial_model for jobID. Callers that also drop S3 objects should delete
+// those prefixes first; this function does not touch object storage.
+func (s *Store) DeleteJob(ctx context.Context, jobID string) (*DeleteJobResult, error) {
+	plan, err := s.PlanJobDelete(ctx, jobID)
+	if err != nil {
+		return nil, err
+	}
+	err = s.Write(ctx, func(ctx context.Context, tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM hub_trial_model WHERE trial_id IN (SELECT id FROM hub_trial WHERE job_id = ?)`, jobID); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM hub_trial WHERE job_id = ?`, jobID); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM trials WHERE job_id = ?`, jobID); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM job_overlays WHERE job_id = ?`, jobID); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM jobs WHERE job_id = ?`, jobID); err != nil {
@@ -1215,12 +1239,7 @@ func (s *Store) DeleteJob(ctx context.Context, jobID string) (*DeleteJobResult, 
 	if err != nil {
 		return nil, err
 	}
-	out := &DeleteJobResult{}
-	for p := range prefixes {
-		out.Prefixes = append(out.Prefixes, p)
-	}
-	sort.Strings(out.Prefixes)
-	return out, nil
+	return plan, nil
 }
 
 func (s *Store) CountHubJobs(ctx context.Context) (int, error) {
