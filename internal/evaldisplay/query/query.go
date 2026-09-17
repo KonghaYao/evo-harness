@@ -51,15 +51,15 @@ type JobListItem struct {
 	RunnerName        *string  `json:"runner_name"`
 	RunnerVersion     *string  `json:"runner_version"`
 	Listed            bool     `json:"listed"`
+	DatasetName       *string  `json:"dataset_name"`
+	DatasetRef        *string  `json:"dataset_ref"`
+	DatasetPath       *string  `json:"dataset_path"`
 }
 
 type JobDetail struct {
 	JobListItem
 	HubOrg          *string         `json:"hub_org"`
 	HarborVersion   *string         `json:"harbor_version"`
-	DatasetPath     *string         `json:"dataset_path"`
-	DatasetRef      *string         `json:"dataset_ref"`
-	DatasetName     *string         `json:"dataset_name"`
 	SandboxType     *string         `json:"sandbox_type"`
 	SandboxLocation *string         `json:"sandbox_location"`
 	JobTypeReason   *string         `json:"job_type_reason"`
@@ -177,9 +177,6 @@ func (s *Service) GetJob(ctx context.Context, jobID string) (*JobDetail, error) 
 		JobListItem:     item,
 		HubOrg:          ov.HubOrg,
 		HarborVersion:   ov.HarborVersion,
-		DatasetPath:     ov.DatasetPath,
-		DatasetRef:      ov.DatasetRef,
-		DatasetName:     ov.DatasetName,
 		SandboxType:     ov.SandboxType,
 		SandboxLocation: ov.SandboxLocation,
 		JobTypeReason:   ov.JobTypeReason,
@@ -494,6 +491,9 @@ func jobListItem(r store.JobRow) JobListItem {
 		RunnerName:        r.Overlay.RunnerName,
 		RunnerVersion:     r.Overlay.RunnerVersion,
 		Listed:            r.Overlay.Listed,
+		DatasetName:       r.Overlay.DatasetName,
+		DatasetRef:        r.Overlay.DatasetRef,
+		DatasetPath:       r.Overlay.DatasetPath,
 	}
 }
 

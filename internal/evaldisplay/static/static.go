@@ -19,6 +19,7 @@ func Register(h *server.Hertz, dir string) {
 	h.GET("/", serve(dir, "ui/index.html", "text/html; charset=utf-8"))
 	h.GET("/app.css", serve(dir, "ui/app.css", "text/css; charset=utf-8"))
 	h.GET("/app.js", serve(dir, "ui/app.js", "application/javascript; charset=utf-8"))
+	h.GET("/chart.umd.min.js", serve(dir, "ui/chart.umd.min.js", "application/javascript; charset=utf-8"))
 	h.GET("/admin", serve(dir, "admin/index.html", "text/html; charset=utf-8"))
 	h.GET("/admin/", serve(dir, "admin/index.html", "text/html; charset=utf-8"))
 	h.GET("/admin/app.css", serve(dir, "admin/app.css", "text/css; charset=utf-8"))

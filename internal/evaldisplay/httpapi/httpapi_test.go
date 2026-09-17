@@ -235,7 +235,7 @@ func TestHarborCLIVerticalSlice(t *testing.T) {
 	for _, it := range list.Items {
 		name, _ := it["job_name"].(string)
 		byName[name] = it
-		for _, k := range []string{"n_input_tokens", "n_cache_tokens", "n_output_tokens", "cost_usd", "n_agent_steps", "usage_reported"} {
+		for _, k := range []string{"n_input_tokens", "n_cache_tokens", "n_output_tokens", "cost_usd", "n_agent_steps", "usage_reported", "dataset_name", "job_name"} {
 			if _, ok := it[k]; !ok {
 				t.Fatalf("list item missing %s", k)
 			}
@@ -766,13 +766,6 @@ func TestRootAndAdminHTML(t *testing.T) {
 	if !strings.Contains(ct, "text/html") {
 		t.Fatalf("GET / Content-Type %q", ct)
 	}
-	w = e.do("GET", "/admin/", nil)
-	if w.Code != 200 {
-		t.Fatalf("GET /admin/ %d %s", w.Code, w.Body)
-	}
-	if !bytes.Contains(w.Body.Bytes(), []byte("后台")) {
-		t.Fatalf("admin HTML missing 后台: %s", w.Body)
-	}
 	w = e.do("GET", "/healthz", nil)
 	if w.Code != 200 {
 		t.Fatalf("healthz %d", w.Code)
@@ -784,6 +777,52 @@ func TestRootAndAdminHTML(t *testing.T) {
 	w = e.do("GET", "/v1/jobs", nil)
 	if w.Code != 200 {
 		t.Fatalf("GET /v1/jobs want 200 got %d %s", w.Code, w.Body)
+	}
+	w = e.do("GET", "/app.js", nil)
+	if w.Code != 200 {
+		t.Fatalf("GET /app.js %d", w.Code)
+	}
+	js := w.Body.Bytes()
+	if !bytes.Contains(js, []byte("完成度")) || !bytes.Contains(js, []byte("n_agent_steps")) {
+		t.Fatalf("viewer chart missing 完成度 / n_agent_steps")
+	}
+	if !bytes.Contains(js, []byte("n_input_tokens + n_cache_tokens + n_output_tokens")) {
+		t.Fatalf("token X axis must sum the three reported token fields")
+	}
+	if !bytes.Contains(js, []byte("未报告用量")) {
+		t.Fatalf("chart must label unreported usage")
+	}
+	if !bytes.Contains(js, []byte("chart-seg-btn")) {
+		t.Fatalf("X axis must be segmented buttons")
+	}
+	if !bytes.Contains(js, []byte("reverse: true")) && !bytes.Contains(js, []byte("reverse:true")) {
+		t.Fatalf("X scale must reverse so fewer tokens/cost/steps sit on the right")
+	}
+	if !bytes.Contains(js, []byte("向右更少")) || !bytes.Contains(js, []byte("harness")) {
+		t.Fatalf("chart copy missing 向右更少 / harness identity")
+	}
+	if !bytes.Contains(js, []byte("data-board")) {
+		t.Fatalf("viewer must expose leaderboard tabs")
+	}
+	if !bytes.Contains(js, []byte("peri-3142-full")) || !bytes.Contains(js, []byte("peri-3142-fail44")) {
+		t.Fatalf("full and fail44 must be separate board keys")
+	}
+	if !bytes.Contains(js, []byte("不合并 Pass@1")) {
+		t.Fatalf("tabs must say full and fail44 are not merged")
+	}
+	if !bytes.Contains(js, []byte("榜单名称")) {
+		t.Fatalf("hover/detail must show 榜单名称")
+	}
+	w = e.do("GET", "/chart.umd.min.js", nil)
+	if w.Code != 200 {
+		t.Fatalf("GET /chart.umd.min.js %d", w.Code)
+	}
+	if !bytes.Contains(w.Body.Bytes(), []byte("Chart.js")) {
+		t.Fatalf("chart bundle missing Chart.js header")
+	}
+	w = e.do("GET", "/admin/", nil)
+	if w.Code != 200 || !bytes.Contains(w.Body.Bytes(), []byte("后台")) {
+		t.Fatalf("admin page broken after chart: %d %s", w.Code, w.Body)
 	}
 }
 
