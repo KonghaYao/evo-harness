@@ -52,6 +52,6 @@ func main() {
 		defer cancel()
 		_ = h.Shutdown(ctx)
 	}()
-	log.Printf("eval-display listening on %s", cfg.Addr)
+	log.Printf("fenix-eval listening on %s", cfg.Addr)
 	h.Spin()
 }

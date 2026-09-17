@@ -3,13 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>评测展示</title>
+  <title>Fenix Eval</title>
   <link rel="stylesheet" href="/app.css" />
 </head>
 <body>
+  <div class="brand-bar" aria-hidden="true"></div>
   <div class="wrap">
     <header class="top">
-      <div class="brand">评测展示</div>
+      <div class="brand">Fenix <span class="word-eval">Eval</span></div>
       <nav class="nav" aria-label="视图">
         <a href="#/" data-nav="board">榜单</a>
         <a href="#/compare" data-nav="compare">对照</a>
@@ -19,11 +20,13 @@
     <p id="flash" class="flash" hidden></p>
     <main id="main"></main>
 
-    <p class="foot">
-      一行一个 <code>job_id</code>，不混榜。用量五字段始终列出；标「未报告」的 0 表示源未给出，不是测得的零消耗。
-      v1 不提供 peri.txt / ATIF 会话查看。
-      管理后台：<a href="/admin/">/admin/</a>
-    </p>
+    <section class="upload" id="upload" aria-labelledby="upload-title">
+      <div class="upload-head">
+        <h2 id="upload-title">上传作业</h2>
+        <button type="button" class="btn" id="upload-copy">复制</button>
+      </div>
+      <pre><code id="upload-code"></code></pre>
+    </section>
   </div>
   <script src="/chart.umd.min.js" defer></script>
   <script src="/app.js" defer></script>

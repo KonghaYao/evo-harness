@@ -1,15 +1,17 @@
 :root {
-  --bg: #f4f1ea;
-  --paper: #fffdf8;
-  --ink: #161412;
-  --muted: #6e6860;
-  --faint: #948e84;
-  --line: #e2dbd0;
-  --line-strong: #cfc6b8;
-  --accent: #c23b22;
-  --accent-soft: rgba(194, 59, 34, 0.08);
-  --chip: #efeae1;
+  --bg: #ffffff;
+  --paper: #ffffff;
+  --surface: #f3f5f7;
+  --ink: #2c333c;
+  --muted: #6a727c;
+  --faint: #8b929c;
+  --line: #e2e5e9;
+  --line-strong: #c9ced6;
+  --accent: #1b4f9a;
+  --accent-soft: #f3f5f7;
+  --chip: #f3f5f7;
   --ok: #2f5d3a;
+  --danger: #9b2c2c;
 }
 
 * { box-sizing: border-box; }
@@ -24,6 +26,12 @@ body {
   font-family: "Avenir Next", "Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif;
   line-height: 1.45;
   min-height: 100vh;
+  font-variant-numeric: tabular-nums;
+}
+
+.brand-bar {
+  height: 3px;
+  background: var(--accent);
 }
 
 button, input, select {
@@ -48,7 +56,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 tr[tabindex]:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 1px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -71,10 +79,13 @@ tr[tabindex]:focus-visible {
 
 .brand {
   font-family: "Iowan Old Style", Palatino, "Songti SC", serif;
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  color: var(--muted);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ink);
 }
+
+.word-eval { color: var(--accent); }
 
 .nav {
   display: flex;
@@ -88,7 +99,7 @@ tr[tabindex]:focus-visible {
 }
 
 .nav a[aria-current="page"] {
-  color: var(--ink);
+  color: var(--accent);
   border-bottom-color: var(--accent);
 }
 
@@ -137,9 +148,10 @@ tr[tabindex]:focus-visible {
 .flash {
   margin: 0 0 18px;
   padding: 10px 12px;
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border: 1px solid var(--line-strong);
+  border-left: 2px solid var(--accent);
+  background: var(--paper);
+  color: var(--ink);
   font-size: 0.86rem;
 }
 
@@ -154,13 +166,14 @@ tr[tabindex]:focus-visible {
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.2;
-  margin: 0 0 10px;
+  margin: 0;
 }
 
 .banner p {
   margin: 0 auto 6px;
   color: var(--muted);
   max-width: 46em;
+  word-break: keep-all;
 }
 
 .board-tabs-wrap {
@@ -189,9 +202,9 @@ tr[tabindex]:focus-visible {
 }
 
 .board-tab[aria-selected="true"] {
-  background: var(--ink);
+  background: var(--accent);
   color: #fff;
-  border-color: var(--ink);
+  border-color: var(--accent);
 }
 
 .board-tab[aria-selected="true"]:hover {
@@ -210,45 +223,11 @@ tr[tabindex]:focus-visible {
 
 .board-tab-note {
   margin: 10px auto 0;
-  max-width: 40em;
+  max-width: 52em;
   text-align: center;
   font-size: 0.78rem;
   color: var(--muted);
-}
-
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  margin: 0 0 28px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-
-.stat {
-  padding: 16px 20px 14px 0;
-}
-
-.stat + .stat {
-  padding-left: 24px;
-  border-left: 1px solid var(--line);
-}
-
-.stat b {
-  display: block;
-  font-family: "Iowan Old Style", Palatino, serif;
-  font-size: 1.7rem;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-}
-
-.stat span {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--faint);
+  word-break: keep-all;
 }
 
 .chart-panel {
@@ -327,7 +306,7 @@ tr[tabindex]:focus-visible {
 }
 
 .chart-seg-btn[aria-pressed="true"] {
-  background: var(--ink);
+  background: var(--accent);
   color: #fff;
 }
 
@@ -406,7 +385,7 @@ tr[tabindex]:focus-visible {
   padding: 10px 12px 8px;
   background: #fff;
   border: 1px solid var(--line-strong);
-  box-shadow: 0 8px 24px rgba(22, 20, 18, 0.08);
+  box-shadow: none;
   pointer-events: none;
 }
 
@@ -494,8 +473,7 @@ table {
 th {
   text-align: left;
   font-size: 0.68rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--faint);
   font-weight: 500;
   padding: 8px 10px 8px 0;
@@ -503,7 +481,7 @@ th {
   white-space: nowrap;
   position: sticky;
   top: 0;
-  background: var(--bg);
+  background: var(--surface);
   z-index: 1;
 }
 
@@ -526,17 +504,36 @@ td {
 
 .board tbody tr:hover,
 .trials tbody tr:hover {
-  background: var(--accent-soft);
+  background: var(--surface);
 }
 
+.board tbody tr.is-on,
 .trials tbody tr.is-on {
-  background: var(--accent-soft);
+  background: var(--surface);
   box-shadow: inset 2px 0 0 var(--accent);
+}
+
+th.num,
+td.num {
+  text-align: right;
+}
+
+.cfg {
+  min-width: 11rem;
+}
+
+.cfg a {
+  color: var(--accent);
+}
+
+.cfg a:hover {
+  border-bottom: 1px solid var(--accent);
 }
 
 .cfg strong {
   display: block;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .cfg small {
@@ -546,23 +543,16 @@ td {
   font-size: 0.76rem;
 }
 
+.board td small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
 .num {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.bar {
-  display: block;
-  height: 3px;
-  background: var(--line);
-  margin-top: 8px;
-  max-width: 180px;
-}
-
-.bar i {
-  display: block;
-  height: 3px;
-  background: var(--accent);
 }
 
 .unrep {
@@ -576,9 +566,10 @@ td {
 .empty, .busy, .error-box {
   padding: 36px 0;
   color: var(--muted);
+  text-align: center;
 }
 
-.error-box { color: var(--accent); }
+.error-box { color: var(--danger); }
 
 .run-id {
   display: grid;
@@ -629,8 +620,7 @@ td {
 .usage-cell .lbl {
   display: block;
   font-size: 0.68rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--faint);
   margin-bottom: 4px;
 }
@@ -650,8 +640,7 @@ td {
 .pane h3 {
   margin: 0 0 10px;
   font-size: 0.72rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--faint);
   font-weight: 500;
 }
@@ -768,7 +757,10 @@ code {
   color: var(--muted);
 }
 
-.crumb a { border-bottom: 1px solid var(--line-strong); }
+.crumb a {
+  color: var(--accent);
+  border-bottom: 1px solid var(--line-strong);
+}
 
 .board th:first-child,
 .board td.pick {
@@ -798,12 +790,52 @@ code {
     center / 10px 10px no-repeat;
 }
 
-.foot {
+.upload {
   margin-top: 48px;
-  padding-top: 14px;
+  padding-top: 20px;
   border-top: 1px solid var(--line);
-  font-size: 0.75rem;
-  color: var(--faint);
+}
+
+.upload-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+}
+
+.upload h2 {
+  font-family: "Iowan Old Style", Palatino, "Songti SC", serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.upload pre {
+  margin: 0;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow: auto;
+}
+
+.upload code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  white-space: pre;
+  color: var(--ink);
+}
+
+.sh-kw { color: var(--accent); font-weight: 600; }
+.sh-cmd { color: var(--accent); }
+.sh-var { color: #0c8599; }
+.sh-str { color: #2f5d3a; }
+.sh-ph { color: #f76707; }
+
+.compare-card a {
+  color: var(--accent);
 }
 
 @media (max-width: 960px) {
@@ -814,10 +846,9 @@ code {
     height: 280px;
     min-height: 240px;
   }
-  .stats, .run-id, .run-grid, .compare-grid, .usage-grid {
+  .run-id, .run-grid, .compare-grid, .usage-grid {
     grid-template-columns: 1fr;
   }
-  .stat + .stat,
   .usage-cell + .usage-cell {
     padding-left: 0;
     border-left: 0;

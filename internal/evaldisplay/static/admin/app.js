@@ -151,7 +151,9 @@
       const items = list.items || [];
       const rows = items
         .map(function (j) {
-          const pass = j.finalized ? fmtPct(j.pass_at_1) : "—";
+          const pass = j.finalized
+            ? fmtNum(j.n_reward_1) + "/" + fmtNum(j.n_trials) + " · " + fmtPct(j.pass_at_1)
+            : "尚未 finalize";
           return (
             '<tr data-job="' +
             escapeHtml(j.job_id) +
@@ -188,11 +190,11 @@
         '<p class="note">含尚未 finalize 的 hub_job。一行一个 job_id。点击行进入 overlay / 签字；删除须确认，且不可恢复。</p>' +
         (items.length
           ? '<div class="table-scroll"><table><thead><tr>' +
-            "<th>作业</th><th>ingest</th><th>前台可见</th><th>签字</th><th>Pass@1</th><th>hub / 分析 trial</th><th>job_type</th><th>endpoint_class</th><th class=\"act\">操作</th>" +
+            "<th>作业</th><th>ingest</th><th>前台可见</th><th>签字</th><th class=\"num\">完成度</th><th class=\"num\">hub / 分析 trial</th><th>job_type</th><th>endpoint_class</th><th class=\"act\">操作</th>" +
             "</tr></thead><tbody>" +
             rows +
             "</tbody></table></div>"
-          : '<p class="empty">尚无 hub_job。</p>');
+          : '<p class="empty">还没有 hub_job。</p>');
       main.querySelectorAll("button[data-delete]").forEach(function (btn) {
         btn.addEventListener("click", function (e) {
           e.preventDefault();
@@ -308,8 +310,8 @@
         " / " +
         fmtNum(j.n_trials) +
         "</dd>" +
-        "<dt>Pass@1</dt><dd>" +
-        (j.finalized ? fmtPct(j.pass_at_1) + "（" + fmtNum(j.n_reward_1) + "/" + fmtNum(j.n_trials) + "）" : "尚未 finalize") +
+        "<dt>完成度</dt><dd>" +
+        (j.finalized ? fmtPct(j.pass_at_1) + "（Pass@1 = " + fmtNum(j.n_reward_1) + "/" + fmtNum(j.n_trials) + "）" : "尚未 finalize") +
         "</dd></dl>" +
         (j.finalized
           ? '<form id="ov-form" class="form-grid">' +

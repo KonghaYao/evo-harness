@@ -1,6 +1,6 @@
-# 评测展示服务
+# Fenix Eval
 
-本仓库实现评测系统第 1 层：**Harbor 兼容上传入口 + S3 作业树 + SQLite 分析库 + 读接口**。权威规格见 [`docs/eval-display-server-design.md`](docs/eval-display-server-design.md)。
+Fenix Eval（评测展示服务）实现评测系统第 1 层：**Harbor 兼容上传入口 + S3 作业树 + SQLite 分析库 + 读接口**。权威规格见 [`docs/eval-display-server-design.md`](docs/eval-display-server-design.md)。品牌规格见 [`BRAND.html`](BRAND.html)。
 
 生产 ingest **只有** Harbor CLI 上传兼容面（`harbor upload` / `harbor run … --upload`）。本服务不实现 hosted 拉起（`--launch`、`POST /job-submit`），也不提供自定义 `POST /v1/jobs`。
 

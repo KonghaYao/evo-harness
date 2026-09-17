@@ -773,8 +773,14 @@ func TestRootAndAdminHTML(t *testing.T) {
 	if !bytes.Contains(bytes.ToLower(body), []byte("<!doctype html")) && !bytes.Contains(body, []byte("<html")) {
 		t.Fatalf("GET / want HTML, got %s", body)
 	}
+	if !bytes.Contains(body, []byte("Fenix Eval")) {
+		t.Fatalf("GET / missing Fenix Eval brand")
+	}
 	if bytes.Contains(body, []byte("token-form")) || bytes.Contains(body, []byte("EVAL_DISPLAY_TOKEN")) {
 		t.Fatalf("GET / still asks for viewer token")
+	}
+	if !bytes.Contains(body, []byte("上传作业")) || !bytes.Contains(body, []byte("upload-copy")) {
+		t.Fatalf("GET / missing upload snippet")
 	}
 	ct := w.Header().Get("Content-Type")
 	if !strings.Contains(ct, "text/html") {
@@ -797,6 +803,9 @@ func TestRootAndAdminHTML(t *testing.T) {
 		t.Fatalf("GET /app.js %d", w.Code)
 	}
 	js := w.Body.Bytes()
+	if !bytes.Contains(js, []byte("harbor upload")) || !bytes.Contains(js, []byte("HARBOR_SUPABASE_URL")) {
+		t.Fatalf("viewer missing Harbor upload snippet")
+	}
 	if !bytes.Contains(js, []byte("完成度")) || !bytes.Contains(js, []byte("n_agent_steps")) {
 		t.Fatalf("viewer chart missing 完成度 / n_agent_steps")
 	}
@@ -821,8 +830,14 @@ func TestRootAndAdminHTML(t *testing.T) {
 	if !bytes.Contains(js, []byte("peri-3142-full")) || !bytes.Contains(js, []byte("peri-3142-fail44")) {
 		t.Fatalf("full and fail44 must be separate board keys")
 	}
-	if !bytes.Contains(js, []byte("不合并 Pass@1")) {
+	if !bytes.Contains(js, []byte("不合并完成度")) {
 		t.Fatalf("tabs must say full and fail44 are not merged")
+	}
+	if !bytes.Contains(js, []byte("<th>harness</th>")) || !bytes.Contains(js, []byte("<th>model</th>")) {
+		t.Fatalf("board table must split harness and model columns")
+	}
+	if !bytes.Contains(js, []byte(`pointStyle: "rect"`)) && !bytes.Contains(js, []byte("pointStyle:\"rect\"")) {
+		t.Fatalf("scatter points must be square")
 	}
 	if !bytes.Contains(js, []byte("榜单名称")) {
 		t.Fatalf("hover/detail must show 榜单名称")
@@ -835,7 +850,7 @@ func TestRootAndAdminHTML(t *testing.T) {
 		t.Fatalf("chart bundle missing Chart.js header")
 	}
 	w = e.do("GET", "/admin/", nil)
-	if w.Code != 200 || !bytes.Contains(w.Body.Bytes(), []byte("后台")) {
+	if w.Code != 200 || !bytes.Contains(w.Body.Bytes(), []byte("Fenix Eval · 后台")) {
 		t.Fatalf("admin page broken after chart: %d %s", w.Code, w.Body)
 	}
 	w = e.do("GET", "/admin/app.js", nil)

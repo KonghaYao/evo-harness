@@ -206,7 +206,7 @@
       '<div class="board-tabs" role="tablist" aria-label="榜单">' +
       btns +
       "</div>" +
-      '<p class="board-tab-note">榜单名称取自 Harbor 作业名（job_name）。peri-3142-full 与 peri-3142-fail44 分列，不合并 Pass@1。</p>' +
+      '<p class="board-tab-note">榜单名称取自 Harbor 作业名（job_name）。peri-3142-full 与 peri-3142-fail44 分列，不合并完成度。</p>' +
       "</div>"
     );
   }
@@ -250,6 +250,9 @@
       if (a.getAttribute("data-nav") === view) a.setAttribute("aria-current", "page");
       else a.removeAttribute("aria-current");
     });
+    if (view === "compare") document.title = "Fenix Eval · 对照";
+    else if (view === "job") document.title = "Fenix Eval · 作业";
+    else document.title = "Fenix Eval";
   }
   function parseRoute() {
     const raw = (location.hash || "#/").replace(/^#/, "") || "/";
@@ -318,11 +321,12 @@
         ? jobsCache.filter(function (j) { return boardKey(j) === selected; })
         : [];
       const stats = boardStats(boardJobs);
-      const mean = stats.mean_pass_at_1 == null ? "—" : fmtPct(stats.mean_pass_at_1);
       const rows = boardJobs
         .map(function (j) {
-          const agent = escapeHtml(j.agent_name || "—") + (j.agent_version ? " / " + escapeHtml(j.agent_version) : "");
-          const model = escapeHtml(j.model_name || "—") + (j.model_provider ? " · " + escapeHtml(j.model_provider) : "");
+          const harness = escapeHtml(j.agent_name || "—") +
+            (j.agent_version ? "<br><small>" + escapeHtml(j.agent_version) + "</small>" : "");
+          const model = escapeHtml(j.model_name || "—") +
+            (j.model_provider ? "<br><small>" + escapeHtml(j.model_provider) + "</small>" : "");
           const runner = [j.runner_name, j.runner_version].filter(Boolean).map(escapeHtml).join(" ") || "—";
           const inc = j.incomparability
             ? '<small title="' + escapeHtml(j.incomparability) + '">' + escapeHtml(j.incomparability) + "</small>"
@@ -338,22 +342,23 @@
             '"' +
             checked +
             " /></td>" +
-            '<td class="cfg"><strong>' +
+            '<td class="cfg"><a href="#/jobs/' +
+            encodeURIComponent(j.job_id) +
+            '"><strong>' +
             escapeHtml(j.job_name) +
-            "</strong><small><code title=\"" +
+            "</strong></a><small><code title=\"" +
             escapeHtml(j.job_id) +
             '">' +
             escapeHtml(j.job_id) +
             "</code></small>" +
             inc +
-            '<span class="bar" aria-hidden="true"><i style="width:' +
-            Math.max(0, Math.min(100, Number(j.pass_at_1) * 100)) +
-            '%"></i></span></td>' +
+            "</td>" +
             "<td>" +
-            agent +
-            "<br><small>" +
+            harness +
+            "</td>" +
+            "<td>" +
             model +
-            "</small></td>" +
+            "</td>" +
             '<td class="num">' +
             fmtPass(j.n_reward_1, j.n_trials, j.pass_at_1) +
             "</td>" +
@@ -402,23 +407,11 @@
             '">对照所选两条</a>'
           : '<span class="note" style="margin:0">勾选两条作业以对照；不会合并为一行。</span>';
       const emptyMsg = jobsCache.length
-        ? '<p class="empty">本榜尚无已 finalize 作业。</p>'
-        : '<p class="empty">尚无已 finalize 且未隐藏的作业。请用 Harbor CLI 上传后再刷新。</p>';
+        ? '<p class="empty">本榜还没有已 finalize 作业。</p>'
+        : '<p class="empty">还没有已完成且未隐藏的作业。请用 Harbor CLI 上传后再刷新。v1 不提供 peri.txt / ATIF 会话查看。</p>';
       main.innerHTML =
-        '<section class="banner"><h1>榜单</h1>' +
-        "<p>每个标签页是一份独立榜单。一行一个 job_id。Pass@1 为该作业已入库 trial 的 reward 均值。下方均值为本榜各作业 Pass@1 的算术平均，不把不同作业的 trial 混池，也不把 peri-3142-full 与 peri-3142-fail44 合成一条。</p></section>" +
+        '<section class="banner"><h1>Fenix <span class="word-eval">Eval</span></h1></section>' +
         boardTabsHTML(boards, selected) +
-        '<div class="stats">' +
-        '<div class="stat"><b>' +
-        fmtNum(stats.n_jobs) +
-        "</b><span>本榜作业</span></div>" +
-        '<div class="stat"><b>' +
-        fmtNum(stats.n_trials) +
-        "</b><span>已入库 trial</span></div>" +
-        '<div class="stat"><b>' +
-        mean +
-        "</b><span>作业 Pass@1 均值</span></div>" +
-        "</div>" +
         '<p class="note">用量已报告 ' +
         fmtNum(stats.n_usage_reported_jobs) +
         " 个作业；未报告 " +
@@ -430,8 +423,10 @@
         "</div>" +
         (boardJobs.length
           ? '<div class="table-scroll"><table class="board"><thead><tr>' +
-            "<th>对照</th><th>作业</th><th>agent / model</th><th>Pass@1</th><th>n</th>" +
-            "<th>n_input_tokens</th><th>n_cache_tokens</th><th>n_output_tokens</th><th>cost_usd</th><th>n_agent_steps</th>" +
+            "<th>对照</th><th>作业</th><th>harness</th><th>model</th>" +
+            '<th class="num">完成度</th><th class="num">n_trials</th>' +
+            '<th class="num">n_input_tokens</th><th class="num">n_cache_tokens</th>' +
+            '<th class="num">n_output_tokens</th><th class="num">cost_usd</th><th class="num">n_agent_steps</th>' +
             "<th>签字</th><th>执行器</th></tr></thead><tbody>" +
             rows +
             "</tbody></table></div>"
@@ -548,7 +543,7 @@
     const reported = !!j.usage_reported;
     const usageNote = reported
       ? '<p class="note" style="margin:0 0 8px">usage_reported=true</p>'
-      : '<p class="unrep">未报告用量：下列用量为 0 表示源未给出，不是测得的 0。</p>';
+      : '<p class="unrep">未报告用量：下面的 0 是源没给，不是测得的 0。</p>';
     const ident = pointLabel(j, all || boardJobs);
     return (
       "<h3>详情</h3>" +
@@ -642,8 +637,8 @@
     const items = boardJobs;
     if (!items.length) {
       wrap.innerHTML = jobsCache.length
-        ? '<p class="chart-empty">本榜尚无已 finalize 作业。</p>'
-        : '<p class="chart-empty">尚无已 finalize 作业，无法绘图。请用 Harbor CLI 上传后再刷新。</p>';
+        ? '<p class="chart-empty">本榜还没有已 finalize 作业。</p>'
+        : '<p class="chart-empty">还没有已 finalize 作业，无法绘图。请用 Harbor CLI 上传后再刷新。</p>';
       fillChartLegend([]);
       setChartHint("");
       return;
@@ -697,11 +692,11 @@
         pointBackgroundColor: subset.map(function (p) {
           return p.unreported ? "#ffffff" : color;
         }),
-        pointStyle: "circle",
-        pointRadius: 8,
-        pointHoverRadius: 10,
-        pointHitRadius: 14,
-        pointBorderWidth: 2
+        pointStyle: "rect",
+        pointRadius: 4,
+        pointHoverRadius: 5,
+        pointHitRadius: 12,
+        pointBorderWidth: 1.5
       };
     });
     fillChartLegend(harnesses, colors);
@@ -719,7 +714,7 @@
     }
     setChartHint(hint);
     Chart.defaults.font.family = '"Avenir Next", "Helvetica Neue", "PingFang SC", "Noto Sans SC", sans-serif';
-    Chart.defaults.color = "#868e96";
+    Chart.defaults.color = "#8b929c";
     const betterZonePlugin = {
       id: "betterZone",
       beforeDatasetsDraw: function (chart) {
@@ -731,6 +726,11 @@
         ctx.save();
         ctx.fillStyle = "rgba(47, 158, 68, 0.12)";
         ctx.fillRect(a.right - w * 0.38, a.top, w * 0.38, h * 0.42);
+        ctx.fillStyle = "#2f5d3a";
+        ctx.font = '12px "Avenir Next", "Helvetica Neue", "PingFang SC", sans-serif';
+        ctx.textAlign = "right";
+        ctx.textBaseline = "top";
+        ctx.fillText("右上更优", a.right - 8, a.top + 8);
         ctx.restore();
       }
     };
@@ -755,11 +755,13 @@
           x: {
             type: "linear",
             reverse: true,
-            title: { display: true, text: xDef.axis, color: "#868e96", padding: { top: 4 } },
+            title: { display: true, text: xDef.axis, color: "#8b929c", padding: { top: 4 } },
             beginAtZero: true,
-            grid: { color: "#ececec" },
+            border: { color: "#c9ced6" },
+            grid: { color: "#e2e5e9" },
             ticks: {
-              color: "#868e96",
+              color: "#8b929c",
+              maxTicksLimit: 6,
               callback: function (val) {
                 return xDef.key === "cost" ? fmtCost(val) : fmtNum(val);
               }
@@ -767,12 +769,14 @@
           },
           y: {
             type: "linear",
-            title: { display: true, text: "完成度", color: "#868e96", padding: { bottom: 4 } },
+            title: { display: true, text: "完成度", color: "#8b929c", padding: { bottom: 4 } },
             min: 0,
-            suggestedMax: 1,
-            grid: { color: "#ececec" },
+            max: 1,
+            border: { color: "#c9ced6" },
+            grid: { color: "#e2e5e9" },
             ticks: {
-              color: "#868e96",
+              color: "#8b929c",
+              stepSize: 0.25,
               callback: function (val) {
                 return fmtPct(val);
               }
@@ -813,6 +817,7 @@
   async function renderJob(jobId, trialId, trialPage) {
     destroyBoardChart();
     setNav("board");
+    document.title = "Fenix Eval · 作业";
     main.innerHTML = busy();
     const g = ++gen;
     trialPage = trialPage || 0;
@@ -953,9 +958,9 @@
         kv("job_id", "<code>" + escapeHtml(job.job_id) + "</code>") +
         kv("榜单名称", escapeHtml(boardName(job))) +
         kv("作业", escapeHtml(job.job_name || "—")) +
-        kv("agent", escapeHtml(job.agent_name || "—") + (job.agent_version ? " / " + escapeHtml(job.agent_version) : "")) +
+        kv("harness", escapeHtml(job.agent_name || "—") + (job.agent_version ? " / " + escapeHtml(job.agent_version) : "")) +
         kv("model", escapeHtml(job.model_name || "—") + (job.model_provider ? " · " + escapeHtml(job.model_provider) : "")) +
-        kv("Pass@1", escapeHtml(agg.pass_at_1_fraction || fmtPass(agg.n_reward_1, agg.n_trials, agg.pass_at_1))) +
+        kv("完成度", fmtPass(agg.n_reward_1, agg.n_trials, agg.pass_at_1)) +
         kv("n_reward_1 / n_reward_0", fmtNum(agg.n_reward_1) + " / " + fmtNum(agg.n_reward_0)) +
         kv("墙钟", fmtDur(job.duration_sec)) +
         kv("duration 分位", durStats(agg.duration_sec)) +
@@ -1048,9 +1053,9 @@
           escapeHtml(agg.job_name || side) +
           "</h2><dl class=\"kv\">" +
           kv("job_id", "<code>" + escapeHtml(agg.job_id) + "</code>") +
-          kv("Pass@1", escapeHtml(agg.pass_at_1_fraction || fmtPass(agg.n_reward_1, agg.n_trials, agg.pass_at_1))) +
+          kv("完成度", fmtPass(agg.n_reward_1, agg.n_trials, agg.pass_at_1)) +
           kv("n_trials", fmtNum(agg.n_trials)) +
-          kv("agent", escapeHtml(agg.agent_name || "—")) +
+          kv("harness", escapeHtml(agg.agent_name || "—")) +
           kv("model", escapeHtml(agg.model_name || "—")) +
           kv("duration", durStats(agg.duration_sec)) +
           "</dl>" +
@@ -1173,4 +1178,54 @@
     row.click();
   });
   route();
+
+  function harborOrigin() {
+    return location.origin || "http://127.0.0.1:8080";
+  }
+  function uploadSnippet() {
+    return (
+      "uv tool install harbor\n" +
+      "\n" +
+      "export HARBOR_SUPABASE_URL=" +
+      harborOrigin() +
+      "\n" +
+      "export HARBOR_SUPABASE_PUBLISHABLE_KEY=<anon-key>\n" +
+      "export HARBOR_API_KEY=<upload-token>\n" +
+      "harbor upload <job-dir>"
+    );
+  }
+  function uploadSnippetHTML() {
+    const origin = escapeHtml(harborOrigin());
+    return (
+      '<span class="sh-cmd">uv</span> <span class="sh-cmd">tool</span> <span class="sh-cmd">install</span> <span class="sh-str">harbor</span>\n' +
+      "\n" +
+      '<span class="sh-kw">export</span> <span class="sh-var">HARBOR_SUPABASE_URL</span>=<span class="sh-str">' +
+      origin +
+      "</span>\n" +
+      '<span class="sh-kw">export</span> <span class="sh-var">HARBOR_SUPABASE_PUBLISHABLE_KEY</span>=<span class="sh-ph">&lt;anon-key&gt;</span>\n' +
+      '<span class="sh-kw">export</span> <span class="sh-var">HARBOR_API_KEY</span>=<span class="sh-ph">&lt;upload-token&gt;</span>\n' +
+      '<span class="sh-cmd">harbor</span> <span class="sh-cmd">upload</span> <span class="sh-ph">&lt;job-dir&gt;</span>'
+    );
+  }
+  const uploadCode = document.getElementById("upload-code");
+  if (uploadCode) uploadCode.innerHTML = uploadSnippetHTML();
+  const uploadCopy = document.getElementById("upload-copy");
+  if (uploadCopy && uploadCode) {
+    uploadCopy.addEventListener("click", function () {
+      const text = uploadSnippet();
+      function ok() {
+        uploadCopy.textContent = "已复制";
+        setTimeout(function () {
+          uploadCopy.textContent = "复制";
+        }, 1600);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(ok).catch(function () {
+          showFlash("复制失败，请手动选中命令。", true);
+        });
+        return;
+      }
+      showFlash("请手动选中命令复制。", true);
+    });
+  }
 })();
