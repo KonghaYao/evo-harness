@@ -96,3 +96,25 @@ func TestParseHarborFilesRejectsMissingChecksum(t *testing.T) {
 		t.Fatalf("message %s", ve.Message)
 	}
 }
+
+func TestParseHarborFilesConfigJobID(t *testing.T) {
+	jobID := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	files := map[string][]byte{
+		"result.json": []byte(`{"id":"` + jobID + `"}`),
+		"t-pass/result.json": []byte(`{
+			"id":"11111111-1111-4111-8111-111111111111",
+			"task_name":"hello",
+			"task_checksum":"abababababababababababababababababababababababababababababababab",
+			"config":{"job_id":"` + jobID + `"},
+			"agent_info":{"name":"peri","version":"agent-v3.14.2","model_info":{"name":"deepseek-v4-flash","provider":"deepseek"}},
+			"verifier_result":{"rewards":{"reward":1}}
+		}`),
+	}
+	parsed, err := ParseHarborFiles(jobID, "j", files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Job.NTrials != 1 || parsed.Job.NReward1 != 1 {
+		t.Fatalf("parsed %+v", parsed.Job)
+	}
+}

@@ -352,8 +352,8 @@ func parseTrial(jobID, trialName string, raw []byte) (*store.AnalysisTrial, erro
 	if id == "" {
 		return nil, &ValidateError{Message: "trial missing id", Details: []map[string]string{{"trial_name": trialName, "field": "id"}}}
 	}
-	tj, _ := top["job_id"].(string)
-	if tj != jobID {
+	tj := trialJobID(top)
+	if tj != "" && tj != jobID {
 		return nil, &ValidateError{Message: "trial job_id mismatch", Details: []map[string]string{{"trial_id": id, "field": "job_id"}}}
 	}
 	checksum, _ := top["task_checksum"].(string)
@@ -466,6 +466,18 @@ func parseTrial(jobID, trialName string, raw []byte) (*store.AnalysisTrial, erro
 	t.AgentExecution = rawJSONPtr(top["agent_execution"])
 	t.VerifierTiming = rawJSONPtr(top["verifier"])
 	return t, nil
+}
+
+func trialJobID(top map[string]any) string {
+	if s, _ := top["job_id"].(string); s != "" {
+		return s
+	}
+	if cfg, ok := asMap(top["config"]); ok {
+		if s, _ := cfg["job_id"].(string); s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 func rawJSONPtr(v any) *string {

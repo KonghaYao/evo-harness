@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"io"
 	"strconv"
 	"strings"
 
@@ -16,12 +17,37 @@ func (h *Handler) objectName(c *app.RequestContext) string {
 		return strings.TrimPrefix(n, "/")
 	}
 	p := string(c.Request.URI().Path())
-	const prefix = "/storage/v1/object/results/"
-	if strings.HasPrefix(p, prefix) {
-		return strings.TrimPrefix(p[len(prefix):], "/")
+	const prefix = "/storage/v1/object/"
+	rest := strings.TrimPrefix(p, prefix)
+	rest = strings.TrimPrefix(rest, "/")
+	if i := strings.Index(rest, "/"); i >= 0 {
+		// bucket is rest[:i]; Harbor uses "results"
+		return rest[i+1:]
 	}
-	n := strings.TrimPrefix(c.Param("objectName"), "/")
+	n := strings.TrimPrefix(c.Param("objectKey"), "/")
+	if n == "" {
+		n = strings.TrimPrefix(c.Param("objectName"), "/")
+	}
+	if i := strings.Index(n, "/"); i >= 0 && (strings.HasPrefix(n, "results/") || strings.HasPrefix(n, "packages/")) {
+		return n[i+1:]
+	}
 	return n
+}
+
+func (h *Handler) readObjectBody(c *app.RequestContext) ([]byte, error) {
+	ct := strings.ToLower(string(c.GetHeader("Content-Type")))
+	if strings.Contains(ct, "multipart/form-data") {
+		fh, err := c.FormFile("file")
+		if err == nil && fh != nil {
+			f, err := fh.Open()
+			if err != nil {
+				return nil, err
+			}
+			defer f.Close()
+			return io.ReadAll(f)
+		}
+	}
+	return append([]byte(nil), c.Request.Body()...), nil
 }
 
 func (h *Handler) StorageUpload(ctx context.Context, c *app.RequestContext) {
@@ -33,7 +59,11 @@ func (h *Handler) StorageUpload(ctx context.Context, c *app.RequestContext) {
 		storageErr(c, 400, "objectName is required")
 		return
 	}
-	body := c.Request.Body()
+	body, err := h.readObjectBody(c)
+	if err != nil {
+		storageErr(c, 400, err.Error())
+		return
+	}
 	if int64(len(body)) > h.cfg.MaxUploadBytes {
 		storageErr(c, 413, "payload too large")
 		return
@@ -95,7 +125,7 @@ func (h *Handler) TusCreate(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	if exists {
-		c.JSON(409, map[string]any{"message": "The resource already exists"})
+		c.JSON(409, map[string]any{"statusCode": "409", "error": "Duplicate", "message": "The resource already exists"})
 		return
 	}
 	id := uuid.NewString()
@@ -133,12 +163,9 @@ func (h *Handler) TusCreate(ctx context.Context, c *app.RequestContext) {
 }
 
 func tusLocation(c *app.RequestContext, id string) string {
-	host := string(c.Host())
-	scheme := "http"
-	if bytes.Equal(c.Request.URI().Scheme(), []byte("https")) {
-		scheme = "https"
-	}
-	return scheme + "://" + host + "/storage/v1/upload/resumable/" + id
+	// Relative Location: Harbor CLI joins against HARBOR_SUPABASE_URL and
+	// rejects a Location whose origin differs (resumable._validate_tus_url).
+	return "/storage/v1/upload/resumable/" + id
 }
 
 func (h *Handler) TusHead(ctx context.Context, c *app.RequestContext) {

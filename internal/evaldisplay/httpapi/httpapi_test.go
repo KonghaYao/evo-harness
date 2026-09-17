@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -71,31 +72,56 @@ func (e *env) do(method, path string, body []byte, headers ...ut.Header) *ut.Res
 	return ut.PerformRequest(e.h.Engine, method, path, b, headers...)
 }
 
+func (e *env) ensureJWT() {
+	if e.jwt != "" {
+		return
+	}
+	w := e.do("POST", "/functions/v1/api-key-exchange", []byte(`{"api_key":"test-token"}`),
+		ut.Header{Key: "apikey", Value: e.anon},
+		ut.Header{Key: "Content-Type", Value: "application/json"},
+	)
+	if w.Code != 200 {
+		panic(fmt.Sprintf("exchange %d %s", w.Code, w.Body))
+	}
+	var out struct {
+		AccessToken string `json:"access_token"`
+		ExpiresIn   int    `json:"expires_in"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		panic(err)
+	}
+	if out.ExpiresIn <= 0 || out.AccessToken == "" {
+		panic("expires_in must be positive")
+	}
+	e.jwt = out.AccessToken
+}
+
 func (e *env) harbor(method, path string, body []byte, extra ...ut.Header) *ut.ResponseRecorder {
-	if e.jwt == "" {
-		w := e.do("POST", "/functions/v1/api-key-exchange", []byte(`{"api_key":"test-token"}`),
-			ut.Header{Key: "apikey", Value: e.anon},
-			ut.Header{Key: "Content-Type", Value: "application/json"},
-		)
-		if w.Code != 200 {
-			panic(fmt.Sprintf("exchange %d %s", w.Code, w.Body))
+	e.ensureJWT()
+	hasCT := false
+	for _, h := range extra {
+		if strings.EqualFold(h.Key, "Content-Type") || strings.EqualFold(h.Key, "content-type") {
+			hasCT = true
+			break
 		}
-		var out struct {
-			AccessToken string `json:"access_token"`
-			ExpiresIn   int    `json:"expires_in"`
-		}
-		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
-			panic(err)
-		}
-		if out.ExpiresIn <= 0 || out.AccessToken == "" {
-			panic("expires_in must be positive")
-		}
-		e.jwt = out.AccessToken
 	}
 	hs := []ut.Header{
 		{Key: "apikey", Value: e.anon},
 		{Key: "Authorization", Value: "Bearer " + e.jwt},
-		{Key: "Content-Type", Value: "application/json"},
+	}
+	if !hasCT {
+		hs = append(hs, ut.Header{Key: "Content-Type", Value: "application/json"})
+	}
+	hs = append(hs, extra...)
+	return e.do(method, path, body, hs...)
+}
+
+// tus is Harbor resumable.py: Bearer JWT only, no apikey header.
+func (e *env) tus(method, path string, body []byte, extra ...ut.Header) *ut.ResponseRecorder {
+	e.ensureJWT()
+	hs := []ut.Header{
+		{Key: "Authorization", Value: "Bearer " + e.jwt},
+		{Key: "Tus-Resumable", Value: "1.0.0"},
 	}
 	hs = append(hs, extra...)
 	return e.do(method, path, body, hs...)
@@ -362,8 +388,7 @@ func TestTusSmallOffset(t *testing.T) {
 	e := setup(t)
 	payload := bytes.Repeat([]byte("abcdefgh"), 32)
 	meta := "bucketName " + b64("results") + ",objectName " + b64("jobs/tus/job.log") + ",contentType " + b64("text/plain")
-	w := e.harbor("POST", "/storage/v1/upload/resumable", nil,
-		ut.Header{Key: "Tus-Resumable", Value: "1.0.0"},
+	w := e.tus("POST", "/storage/v1/upload/resumable", nil,
 		ut.Header{Key: "Upload-Length", Value: fmt.Sprintf("%d", len(payload))},
 		ut.Header{Key: "Upload-Metadata", Value: meta},
 	)
@@ -374,28 +399,249 @@ func TestTusSmallOffset(t *testing.T) {
 	if loc == "" {
 		t.Fatal("missing Location")
 	}
+	if strings.Contains(loc, "://") {
+		t.Fatalf("TUS Location should be relative so CLI origin check passes, got %q", loc)
+	}
 	id := loc[len(loc)-36:]
 	path := "/storage/v1/upload/resumable/" + id
-	w = e.harbor("HEAD", path, nil, ut.Header{Key: "Tus-Resumable", Value: "1.0.0"})
+	w = e.tus("HEAD", path, nil)
 	if w.Code != 200 {
 		t.Fatalf("head %d", w.Code)
 	}
 	mid := len(payload) / 2
-	w = e.harbor("PATCH", path, payload[:mid],
-		ut.Header{Key: "Tus-Resumable", Value: "1.0.0"},
+	w = e.tus("PATCH", path, payload[:mid],
 		ut.Header{Key: "Content-Type", Value: "application/offset+octet-stream"},
 		ut.Header{Key: "Upload-Offset", Value: "0"},
 	)
 	if w.Code != 204 {
 		t.Fatalf("patch1 %d %s", w.Code, w.Body)
 	}
-	w = e.harbor("PATCH", path, payload[mid:],
-		ut.Header{Key: "Tus-Resumable", Value: "1.0.0"},
+	w = e.tus("PATCH", path, payload[mid:],
 		ut.Header{Key: "Content-Type", Value: "application/offset+octet-stream"},
 		ut.Header{Key: "Upload-Offset", Value: fmt.Sprintf("%d", mid)},
 	)
 	if w.Code != 204 {
 		t.Fatalf("patch2 %d %s", w.Code, w.Body)
+	}
+}
+
+func TestHarborMaybeSingleAndCORS(t *testing.T) {
+	e := setup(t)
+	missing := "ffffffff-ffff-4fff-8fff-ffffffffffff"
+	w := e.harbor("GET", "/rest/v1/job?select=visibility&id=eq."+missing, nil,
+		ut.Header{Key: "Accept", Value: "application/vnd.pgrst.object+json"},
+	)
+	if w.Code != 406 {
+		t.Fatalf("maybe_single empty want 406 got %d %s", w.Code, w.Body)
+	}
+	var errBody map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &errBody); err != nil {
+		t.Fatal(err)
+	}
+	details, _ := errBody["details"].(string)
+	if !strings.Contains(details, "The result contains 0 rows") {
+		t.Fatalf("postgrest-py maybe_single needs details containing 0 rows, got %v", errBody)
+	}
+
+	w = e.do("OPTIONS", "/rest/v1/job", nil,
+		ut.Header{Key: "Origin", Value: "http://127.0.0.1:3000"},
+		ut.Header{Key: "Access-Control-Request-Method", Value: "GET"},
+		ut.Header{Key: "Access-Control-Request-Headers", Value: "apikey,authorization"},
+	)
+	if w.Code != 204 {
+		t.Fatalf("OPTIONS /rest/v1/job want 204 got %d %s", w.Code, w.Body)
+	}
+	if w.Header().Get("Access-Control-Allow-Origin") == "" {
+		t.Fatalf("missing CORS Allow-Origin: %v", w.Header())
+	}
+	w = e.do("OPTIONS", "/storage/v1/upload/resumable", nil,
+		ut.Header{Key: "Origin", Value: "http://127.0.0.1:3000"},
+		ut.Header{Key: "Access-Control-Request-Method", Value: "POST"},
+	)
+	if w.Code != 204 {
+		t.Fatalf("OPTIONS TUS want 204 got %d %s", w.Code, w.Body)
+	}
+	if w.Header().Get("Tus-Resumable") != "1.0.0" {
+		t.Fatalf("OPTIONS TUS missing Tus-Resumable: %v", w.Header())
+	}
+}
+
+func TestHarborCLISequence(t *testing.T) {
+	e := setup(t)
+	jobID := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	trialID := "11111111-1111-4111-8111-111111111111"
+	objectJSON := ut.Header{Key: "Accept", Value: "application/vnd.pgrst.object+json"}
+	preferRep := ut.Header{Key: "Prefer", Value: "return=representation"}
+	preferUpsert := ut.Header{Key: "Prefer", Value: "return=representation,resolution=merge-duplicates"}
+	preferIgnore := ut.Header{Key: "Prefer", Value: "return=representation,resolution=ignore-duplicates"}
+
+	w := e.harbor("GET", "/rest/v1/job?select=visibility&id=eq."+jobID, nil, objectJSON)
+	if w.Code != 406 {
+		t.Fatalf("start_job visibility probe want 406 got %d %s", w.Code, w.Body)
+	}
+
+	w = e.harbor("POST", "/rest/v1/rpc/list_my_orgs", []byte(`{}`))
+	if w.Code != 200 {
+		t.Fatalf("list_my_orgs %d %s", w.Code, w.Body)
+	}
+	var orgs []map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &orgs); err != nil || len(orgs) == 0 {
+		t.Fatalf("orgs %s", w.Body)
+	}
+	if orgs[0]["kind"] != "personal" {
+		t.Fatalf("want personal org, got %v", orgs[0])
+	}
+	orgID, _ := orgs[0]["id"].(string)
+
+	jobBody := fmt.Sprintf(`{"id":%q,"job_name":"cli-seq","started_at":"2026-09-11T10:00:00Z","config":{"job_name":"cli-seq"},"visibility":"private","org_id":%q,"n_planned_trials":2}`, jobID, orgID)
+	w = e.harbor("POST", "/rest/v1/job", []byte(jobBody), preferRep)
+	if w.Code != 201 {
+		t.Fatalf("insert job %d %s", w.Code, w.Body)
+	}
+	w = e.harbor("GET", "/rest/v1/job?select=org_id,organization(id,name,display_name,kind)&id=eq."+jobID, nil, objectJSON)
+	if w.Code != 200 {
+		t.Fatalf("get_job_owner_org %d %s", w.Code, w.Body)
+	}
+	var owned map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &owned); err != nil {
+		t.Fatal(err)
+	}
+	if owned["org_id"] != orgID {
+		t.Fatalf("org_id %v", owned["org_id"])
+	}
+	orgEmbed, _ := owned["organization"].(map[string]any)
+	if orgEmbed == nil || orgEmbed["id"] != orgID {
+		t.Fatalf("organization embed %v", owned["organization"])
+	}
+
+	w = e.harbor("POST", "/rest/v1/agent?on_conflict=added_by,name,version", []byte(`{"name":"peri","version":"agent-v3.14.2"}`), preferUpsert)
+	if w.Code != 201 && w.Code != 200 {
+		t.Fatalf("agent %d %s", w.Code, w.Body)
+	}
+	var agents []map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &agents); err != nil || len(agents) == 0 || agents[0]["id"] == nil {
+		t.Fatalf("agent must return data[0].id: %s", w.Body)
+	}
+	agentID, _ := agents[0]["id"].(string)
+
+	w = e.harbor("POST", "/rest/v1/model?on_conflict=added_by,name,provider", []byte(`{"name":"deepseek-v4-flash"}`), preferUpsert)
+	if w.Code != 201 && w.Code != 200 {
+		t.Fatalf("model %d %s", w.Code, w.Body)
+	}
+	var models []map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &models)
+	if len(models) == 0 || models[0]["id"] == nil {
+		t.Fatalf("model must return data[0].id: %s", w.Body)
+	}
+	modelID, _ := models[0]["id"].(string)
+
+	w = e.harbor("GET", "/rest/v1/trial?select=id,trial_name,archive_path&id=eq."+trialID, nil, objectJSON)
+	if w.Code != 406 {
+		t.Fatalf("get_trial empty want 406 got %d %s", w.Code, w.Body)
+	}
+
+	trialBody := fmt.Sprintf(`{"id":%q,"trial_name":"t-pass-a","task_name":"t-pass-a","task_content_hash":"c1","lock":{"schema_version":2},"job_id":%q,"agent_id":%q,"config":{},"rewards":{"reward":1}}`, trialID, jobID, agentID)
+	w = e.harbor("POST", "/rest/v1/trial?on_conflict=id", []byte(trialBody), preferIgnore)
+	if w.Code != 201 && w.Code != 200 {
+		t.Fatalf("insert trial %d %s", w.Code, w.Body)
+	}
+	w = e.harbor("POST", "/rest/v1/trial_model?on_conflict=trial_id,model_id", []byte(fmt.Sprintf(`{"trial_id":%q,"model_id":%q}`, trialID, modelID)),
+		ut.Header{Key: "Prefer", Value: "return=minimal,resolution=ignore-duplicates"})
+	if w.Code != 201 && w.Code != 200 && w.Code != 204 {
+		t.Fatalf("trial_model %d %s", w.Code, w.Body)
+	}
+
+	job := ingest.SynthJob{
+		ID:   jobID,
+		Name: "cli-seq",
+		Trials: []ingest.SynthTrial{
+			{ID: trialID, Name: "t-pass-a", Checksum: "c1", Reward: 1},
+			{ID: "11111111-1111-4111-8111-111111111112", Name: "t-fail", Checksum: "c2", Reward: 0},
+		},
+	}
+	trial2 := job.Trials[1]
+	trial2Body := fmt.Sprintf(`{"id":%q,"trial_name":%q,"task_name":%q,"task_content_hash":%q,"lock":{"schema_version":2},"job_id":%q,"agent_id":%q}`,
+		trial2.ID, trial2.Name, trial2.Name, trial2.Checksum, jobID, agentID)
+	w = e.harbor("POST", "/rest/v1/trial?on_conflict=id", []byte(trial2Body), preferIgnore)
+	if w.Code != 201 && w.Code != 200 {
+		t.Fatalf("trial2 %d %s", w.Code, w.Body)
+	}
+
+	tgz, err := job.TarGz()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tr := range job.Trials {
+		trialTar, err := ingest.PackTarGz(map[string][]byte{"result.json": []byte(`{}`)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		meta := "bucketName " + b64("results") + ",objectName " + b64("trials/"+tr.ID+"/trial.tar.gz") + ",contentType " + b64("application/gzip")
+		w = e.tus("POST", "/storage/v1/upload/resumable", nil,
+			ut.Header{Key: "Upload-Length", Value: fmt.Sprintf("%d", len(trialTar))},
+			ut.Header{Key: "Upload-Metadata", Value: meta},
+		)
+		if w.Code != 201 {
+			t.Fatalf("tus trial create %d %s", w.Code, w.Body)
+		}
+		loc := string(w.Header().Get("Location"))
+		path := loc
+		if !strings.HasPrefix(path, "/") {
+			t.Fatalf("relative Location required, got %q", loc)
+		}
+		w = e.tus("PATCH", path, trialTar,
+			ut.Header{Key: "Content-Type", Value: "application/offset+octet-stream"},
+			ut.Header{Key: "Upload-Offset", Value: "0"},
+		)
+		if w.Code != 204 {
+			t.Fatalf("tus trial patch %d %s", w.Code, w.Body)
+		}
+		w = e.harbor("PATCH", "/rest/v1/trial?id=eq."+tr.ID, []byte(fmt.Sprintf(`{"archive_path":"trials/%s/trial.tar.gz","trajectory_path":null}`, tr.ID)), preferRep)
+		if w.Code != 200 {
+			t.Fatalf("finalize trial %d %s", w.Code, w.Body)
+		}
+		var patched []map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &patched); err != nil || len(patched) != 1 || patched[0]["id"] != tr.ID {
+			t.Fatalf("finalize_trial_artifacts requires representation id, got %s", w.Body)
+		}
+	}
+
+	meta := "bucketName " + b64("results") + ",objectName " + b64("jobs/"+jobID+"/job.tar.gz") + ",contentType " + b64("application/gzip")
+	w = e.tus("POST", "/storage/v1/upload/resumable", nil,
+		ut.Header{Key: "Upload-Length", Value: fmt.Sprintf("%d", len(tgz))},
+		ut.Header{Key: "Upload-Metadata", Value: meta},
+	)
+	if w.Code != 201 {
+		t.Fatalf("tus job create %d %s", w.Code, w.Body)
+	}
+	w = e.tus("PATCH", string(w.Header().Get("Location")), tgz,
+		ut.Header{Key: "Content-Type", Value: "application/offset+octet-stream"},
+		ut.Header{Key: "Upload-Offset", Value: "0"},
+	)
+	if w.Code != 204 {
+		t.Fatalf("tus job patch %d %s", w.Code, w.Body)
+	}
+
+	w = e.harbor("GET", "/rest/v1/job?select=id,job_name,archive_path,config,started_at,finished_at,n_planned_trials&id=eq."+jobID, nil, objectJSON)
+	if w.Code != 200 {
+		t.Fatalf("get_job %d %s", w.Code, w.Body)
+	}
+	var remote map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &remote); err != nil {
+		t.Fatal(err)
+	}
+	if remote["archive_path"] != nil {
+		t.Fatalf("archive_path should still be null before finalize, got %v", remote["archive_path"])
+	}
+
+	w = e.harbor("PATCH", "/rest/v1/job?id=eq."+jobID, []byte(fmt.Sprintf(`{"archive_path":"jobs/%s/job.tar.gz","finished_at":"2026-09-12T00:00:00Z"}`, jobID)), preferRep)
+	if w.Code != 200 {
+		t.Fatalf("finalize job %d %s", w.Code, w.Body)
+	}
+
+	w = e.do("GET", "/v1/jobs/"+jobID, nil)
+	if w.Code != 200 {
+		t.Fatalf("viewer after harbor upload %d %s", w.Code, w.Body)
 	}
 }
 
@@ -416,6 +662,26 @@ func TestStorageAlreadyExists(t *testing.T) {
 	}
 	if !bytes.Contains(w.Body.Bytes(), []byte("already exists")) {
 		t.Fatalf("body must contain already exists: %s", w.Body)
+	}
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	fw, err := mw.CreateFormFile("file", "job.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fw.Write([]byte("log-from-multipart")); err != nil {
+		t.Fatal(err)
+	}
+	ct := mw.FormDataContentType()
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	w = e.harbor("POST", "/storage/v1/object/results/jobs/x/from-form.log", buf.Bytes(),
+		ut.Header{Key: "Content-Type", Value: ct},
+	)
+	if w.Code != 200 {
+		t.Fatalf("multipart upload %d %s", w.Code, w.Body)
 	}
 }
 

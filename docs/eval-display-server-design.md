@@ -366,7 +366,7 @@ CLI **没有** `--upload-url` 这类单独开关；上传目标就是 `HARBOR_SU
    - Headers：`apikey: {publishable key}`，`Content-Type: application/json`  
    - Body：`{"api_key":"<HARBOR_API_KEY>"}`  
    - 200：`{"access_token":"<JWT>","expires_in":<秒>}`。`expires_in` 必须为 **正数**（CLI 用其计算过期；0 会导致立刻重换票）。JWT 须含 `sub`（CLI `jwt.decode(verify_signature=False)` 取用户 id）。
-2. 此后 PostgREST / Storage 请求带 `Authorization: Bearer <JWT>`（以及 supabase-py 惯用的 `apikey`）。
+2. 此后 PostgREST / Storage 请求带 `Authorization: Bearer <JWT>`（以及 supabase-py 惯用的 `apikey`）。**例外：** TUS（`src/harbor/storage/resumable.py`）只发 `Authorization` 与 `Tus-Resumable`，**不**发 `apikey`；缺 `apikey` 时只要 JWT 有效即放行。
 3. `start_job`：`GET job.visibility` → 无行则 `INSERT job`（`archive_path`/`finished_at`/`log_path` 为 null）；有行则按 flag 决定是否 `PATCH visibility`。默认调用 `rpc/list_my_orgs` 解析 owner。
 4. 每 trial：upsert `agent`、`model`；`upsert trial`（`on_conflict=id`，`ignore_duplicates`）；上传 `trials/{id}/trial.tar.gz`；可选 trajectory；`PATCH trial` 写 `archive_path`。
 5. `finalize_job`：上传 `jobs/{id}/job.tar.gz`（及可选 `job.log`）；`PATCH job` 写 `archive_path`、`finished_at`。
@@ -389,10 +389,10 @@ PostgREST 资源名（表名，不是 `/v1/jobs`）：`job`、`trial`、`agent`�
 | --- | --- | --- |
 | PostgREST `Prefer` / `Accept` | 支持 `return=representation`、`return=minimal`、`resolution=merge-duplicates`、`resolution=ignore-duplicates`；`maybe_single` 常用 `Accept: application/vnd.pgrst.object+json`，0 行时返回 406 或空 body，CLI 视为不存在 | 精确状态码与空结果形状 |
 | `Range` 分页 | `list_trials_for_job` 用 `.range(start, start+999)` | 是否必回 `Content-Range` |
-| Storage 小对象路径 | `POST /storage/v1/object/results/{objectName}`，objectName 可含 `/` | 是否 `x-upsert`、是否 PUT |
-| TUS `Location` | 绝对或相对 URL，主机必须等于 `HARBOR_SUPABASE_URL`（CLI 校验 origin） | 路径模板（`/storage/v1/upload/resumable/{id}` 等） |
+| Storage 小对象路径 | `POST /storage/v1/object/{bucket}/{objectName}`（bucket=`results`），objectName 可含 `/`；supabase-py 用 multipart 字段 `file`，亦接受原始 body | `x-upsert`；PUT 覆盖 |
+| TUS `Location` | **相对路径** `/storage/v1/upload/resumable/{id}`（CLI 相对 `HARBOR_SUPABASE_URL` join，并校验 origin） | 绝对 URL 亦可，但主机必须等于 CLI 所用 origin |
 | JWT 签名 | 本服务 HMAC（`EVAL_DISPLAY_JWT_SECRET`）自签；**不**验证官方 Hub JWT | 官方是否还校验 `iss`/`role`；CLI 不校验签名 |
-| `apikey` 头 | 必须等于 `EVAL_DISPLAY_ANON_KEY`，否则 401 | supabase-py 是否每请求都带 |
+| `apikey` 头 | 若出现则必须等于 `EVAL_DISPLAY_ANON_KEY`；TUS 可省略 | supabase-py Rest/Storage 每请求都带；TUS 不带 |
 | `created_by` RLS | 无 Postgres RLS；鉴权=换票成功。不模拟 Hub RLS 全文 | Hub 策略细节 |
 | upsert 响应体 | `return=representation` 时返回含 `id` 的对象数组（`upsert_agent` 读 `data[0]["id"]`） | 列集合是否必须与 Hub 完全一致 |
 | `org_id` 列 | insert 可带可缺；缺则按 CLI 遗留路径 | 生成类型未列入 `PublicJobInsert`，db_client 动态加键 |
@@ -479,23 +479,22 @@ PostgREST 资源名（表名，不是 `/v1/jobs`）：`job`、`trial`、`agent`�
 - **v1 桩：** 返回单元素数组 `[{ "id": "<固定UUID>", "name": "local", "display_name": "local", "kind": "personal", "role": "owner" }]`。请求体 `{}`。
 - 不实现真实多 org。`--org` 仅当名称匹配该桩。`--share` 不实现。
 
-#### API-08 Storage 对象写入 `POST /storage/v1/object/results/{*objectName}`
+#### API-08 Storage 对象写入 `POST /storage/v1/object/{bucket}/{*objectName}`
 
-- **目的：** 小文件（官方阈值以内；实现上 TUS 与小对象都应落到同一 S3 键）。
-- **鉴权：** Bearer JWT。
-- **行为：** 字节写入 `s3://{bucket}/{objectName}`。已存在 → 409 且 body 含 `already exists`（官方 `_is_already_exists`）。
-- 路径模板 **待对照抓包**；若 supabase-py 实际走 `PUT` 或 query `?name=`，按抓包改，不另造第三套路径。
+- **目的：** 小文件（官方阈值以内；实现上 TUS 与小对象都应落到同一 S3 键）。Harbor CLI 的 bucket 为 `results`。
+- **鉴权：** Bearer JWT；`apikey` 若出现须匹配。
+- **行为：** 字节写入 `s3://{bucket}/{objectName}`（S3 键不含 bucket 前缀）。已存在 → 409 且 body 含 `already exists`（官方 `_is_already_exists`）。supabase-py `upload` 使用 multipart 字段 `file`。
 
 #### API-09 TUS `/storage/v1/upload/resumable`
 
-- **方法：** `POST` 创建（`Upload-Length`、`Upload-Metadata`、`Tus-Resumable: 1.0.0`）→ `201` + `Location`；`HEAD` 读 `Upload-Offset`；`PATCH` 写 chunk。
+- **方法：** `POST` 创建（`Upload-Length`、`Upload-Metadata`、`Tus-Resumable: 1.0.0`）→ `201` + **相对** `Location` `/storage/v1/upload/resumable/{id}`；`HEAD` 读 `Upload-Offset`；`PATCH` 写 chunk。Harbor CLI 不带 `apikey`。
 - **元数据：** `bucketName=results`，`objectName` 见 3.1。
 - 完成后对象与 API-08 同一 S3 键。阈值与 chunk 6 MiB 为客户端行为，服务端按 offset 协议实现即可。
 - Hertz 必须按 **原始 body** 处理 PATCH，不要当 JSON 绑定。见 7.1。
 
 **job finalize 之后（服务端内部，非新的对外 API）：** 若 `hub_job.archive_path` 刚从空变为非空：从 S3 取 `job.tar.gz`（不足则拼各 `trial.tar.gz`），展开到 `jobs/{job_id}/files/`，校验并写入分析表（3.6）。校验失败：不写分析表，`archive_path` 回滚或保持空并返回 PATCH 5xx，以便 CLI 重试。校验规则与旧 zip ingest 相同：
 
-1. job `id` 为 UUID；所有 trial 的 `job_id` 与之相等。
+1. job `id` 为 UUID；所有 trial 的 `job_id` 与之相等。官方 CLI 的 `result.json` 把 `job_id` 写在 `config.job_id`（`TrialResult` 无顶层 `job_id`）；顶层 `job_id` 与 `config.job_id` 均承认。缺省则视为属于当前 job 归档。
 2. 每个 trial 必须有 `id`、`task_checksum`、`verifier_result.rewards.reward`。
 3. `reward` ∈ {0, 1}，否则失败。
 4. `agent_info.name` 非空。

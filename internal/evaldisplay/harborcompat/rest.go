@@ -217,8 +217,16 @@ func jsonToSQL(v any) any {
 		return nil
 	}
 	switch t := v.(type) {
-	case string, float64, bool, json.Number:
+	case string, float64, bool, int, int64:
 		return t
+	case json.Number:
+		if n, err := t.Int64(); err == nil {
+			return n
+		}
+		if f, err := t.Float64(); err == nil {
+			return f
+		}
+		return t.String()
 	default:
 		b, _ := json.Marshal(t)
 		return string(b)

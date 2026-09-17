@@ -52,6 +52,7 @@ func New(cfg conf.Config, st *store.Store, objects objs3.ObjectStore, ing *inges
 }
 
 func Register(h *server.Hertz, hh *Handler) {
+	h.Use(hh.CORS)
 	h.POST("/functions/v1/api-key-exchange", hh.APIKeyExchange)
 	h.Any("/rest/v1/job", hh.Job)
 	h.Any("/rest/v1/trial", hh.Trial)
@@ -60,30 +61,80 @@ func Register(h *server.Hertz, hh *Handler) {
 	h.POST("/rest/v1/trial_model", hh.TrialModel)
 	h.POST("/rest/v1/rpc/list_my_orgs", hh.ListMyOrgs)
 	h.POST("/rest/v1/rpc/:name", hh.RPCNotFound)
-	h.POST("/storage/v1/object/results/*objectName", hh.StorageUpload)
-	h.PUT("/storage/v1/object/results/*objectName", hh.StorageUpload)
+	// storage3 POST/PUT /storage/v1/object/{bucket}/{path}; path may contain slashes.
+	h.POST("/storage/v1/object/*objectKey", hh.StorageUpload)
+	h.PUT("/storage/v1/object/*objectKey", hh.StorageUpload)
 	h.POST("/storage/v1/upload/resumable", hh.TusCreate)
 	h.HEAD("/storage/v1/upload/resumable/:id", hh.TusHead)
 	h.PATCH("/storage/v1/upload/resumable/:id", hh.TusPatch)
 }
 
-func (h *Handler) requireHarbor(c *app.RequestContext) (jwt.MapClaims, bool) {
-	apikey := string(c.GetHeader("apikey"))
-	if apikey == "" {
-		apikey = string(c.GetHeader("Apikey"))
+const corsAllowHeaders = "authorization, apikey, content-type, prefer, x-upsert, x-client-info, tus-resumable, upload-length, upload-offset, upload-metadata, accept, accept-profile, content-profile, range, range-unit, cache-control"
+const corsExposeHeaders = "Location, Upload-Offset, Upload-Length, Tus-Resumable, Tus-Version, Content-Range, Range-Unit"
+
+func harborPath(path string) bool {
+	return strings.HasPrefix(path, "/functions/v1/") ||
+		strings.HasPrefix(path, "/rest/v1/") ||
+		strings.HasPrefix(path, "/storage/v1/")
+}
+
+func (h *Handler) CORS(ctx context.Context, c *app.RequestContext) {
+	path := string(c.Path())
+	if !harborPath(path) {
+		c.Next(ctx)
+		return
 	}
-	if apikey == "" {
-		if auth := string(c.GetHeader("Authorization")); strings.HasPrefix(strings.ToLower(auth), "bearer ") {
-			// supabase-js sometimes only sends Authorization; still require apikey per design
+	origin := string(c.GetHeader("Origin"))
+	if origin == "" {
+		c.Header("Access-Control-Allow-Origin", "*")
+	} else {
+		c.Header("Access-Control-Allow-Origin", origin)
+		c.Header("Vary", "Origin")
+		c.Header("Access-Control-Allow-Credentials", "true")
+	}
+	c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, HEAD, OPTIONS, DELETE")
+	c.Header("Access-Control-Allow-Headers", corsAllowHeaders)
+	c.Header("Access-Control-Expose-Headers", corsExposeHeaders)
+	c.Header("Access-Control-Max-Age", "86400")
+	if strings.HasPrefix(path, "/storage/v1/upload/resumable") {
+		c.Header("Tus-Resumable", "1.0.0")
+		c.Header("Tus-Version", "1.0.0")
+		c.Header("Tus-Extension", "creation,creation-with-upload")
+	}
+	if string(c.Method()) == "OPTIONS" {
+		c.AbortWithStatus(204)
+		return
+	}
+	c.Next(ctx)
+}
+
+func requestAPIKey(c *app.RequestContext) string {
+	for _, k := range []string{"apikey", "ApiKey", "X-API-Key"} {
+		if v := string(c.GetHeader(k)); v != "" {
+			return v
 		}
 	}
-	if apikey != h.cfg.AnonKey {
-		pgrstError(c, 401, "401", "Invalid API key")
+	return ""
+}
+
+func (h *Handler) authError(c *app.RequestContext, status int, code, message string) {
+	if strings.HasPrefix(string(c.Path()), "/storage/") {
+		storageErr(c, status, message)
+		return
+	}
+	pgrstError(c, status, code, message)
+}
+
+func (h *Handler) requireHarbor(c *app.RequestContext) (jwt.MapClaims, bool) {
+	// supabase-py sends apikey on PostgREST/Storage. Harbor TUS (resumable.py)
+	// sends only Authorization: Bearer <JWT> — do not require apikey when JWT is valid.
+	if key := requestAPIKey(c); key != "" && key != h.cfg.AnonKey {
+		h.authError(c, 401, "401", "Invalid API key")
 		return nil, false
 	}
 	auth := string(c.GetHeader("Authorization"))
 	if !strings.HasPrefix(strings.ToLower(auth), "bearer ") {
-		pgrstError(c, 401, "PGRST301", "Missing bearer token")
+		h.authError(c, 401, "PGRST301", "Missing bearer token")
 		return nil, false
 	}
 	raw := strings.TrimSpace(auth[7:])
@@ -94,12 +145,12 @@ func (h *Handler) requireHarbor(c *app.RequestContext) (jwt.MapClaims, bool) {
 		return []byte(h.cfg.JWTSecret), nil
 	})
 	if err != nil || !tok.Valid {
-		pgrstError(c, 401, "PGRST301", "Invalid JWT")
+		h.authError(c, 401, "PGRST301", "Invalid JWT")
 		return nil, false
 	}
 	claims, ok := tok.Claims.(jwt.MapClaims)
 	if !ok {
-		pgrstError(c, 401, "PGRST301", "Invalid JWT")
+		h.authError(c, 401, "PGRST301", "Invalid JWT")
 		return nil, false
 	}
 	return claims, true
@@ -113,8 +164,7 @@ func (h *Handler) sub(claims jwt.MapClaims) string {
 }
 
 func (h *Handler) APIKeyExchange(ctx context.Context, c *app.RequestContext) {
-	apikey := string(c.GetHeader("apikey"))
-	if apikey != h.cfg.AnonKey {
+	if requestAPIKey(c) != h.cfg.AnonKey {
 		pgrstError(c, 401, "401", "Invalid API key")
 		return
 	}
@@ -180,17 +230,42 @@ func preferResolution(c *app.RequestContext) string {
 }
 
 func selectCols(c *app.RequestContext) []string {
-	s := string(c.Query("select"))
+	return splitSelect(string(c.Query("select")))
+}
+
+func splitSelect(s string) []string {
+	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil
 	}
-	parts := strings.Split(s, ",")
 	var out []string
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
+	var b strings.Builder
+	depth := 0
+	for _, r := range s {
+		switch r {
+		case '(':
+			depth++
+			b.WriteRune(r)
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			b.WriteRune(r)
+		case ',':
+			if depth == 0 {
+				if p := strings.TrimSpace(b.String()); p != "" {
+					out = append(out, p)
+				}
+				b.Reset()
+				continue
+			}
+			b.WriteRune(r)
+		default:
+			b.WriteRune(r)
 		}
+	}
+	if p := strings.TrimSpace(b.String()); p != "" {
+		out = append(out, p)
 	}
 	return out
 }

@@ -112,7 +112,7 @@ export EVAL_DISPLAY_ADDR=:8080
 go run ./cmd/eval-display
 ```
 
-前台（`/` 与 `GET /v1/jobs*`、`GET /v1/stats`、`GET /v1/compare`）**公开**，无需令牌。后台（`/admin/` 静态页可匿名；`PUT /v1/jobs/{id}/overlay`、`GET/DELETE /v1/admin/*`）需要 `Authorization: Bearer $EVAL_DISPLAY_ADMIN_TOKEN`。Harbor ingest 密钥或其它非后台 Bearer 调用后台接口返回 **401/403**。Harbor 面：请求头 `apikey` = `EVAL_DISPLAY_ANON_KEY`，`HARBOR_API_KEY` = `EVAL_DISPLAY_TOKEN`，先 `POST /functions/v1/api-key-exchange` 换 JWT。`/healthz`、`/readyz` 可匿名。
+前台（`/` 与 `GET /v1/jobs*`、`GET /v1/stats`、`GET /v1/compare`）**公开**，无需令牌。后台（`/admin/` 静态页可匿名；`PUT /v1/jobs/{id}/overlay`、`GET/DELETE /v1/admin/*`）需要 `Authorization: Bearer $EVAL_DISPLAY_ADMIN_TOKEN`。Harbor ingest 密钥或其它非后台 Bearer 调用后台接口返回 **401/403**。Harbor 面：请求头 `apikey` = `EVAL_DISPLAY_ANON_KEY`（TUS 可省略），`HARBOR_API_KEY` = `EVAL_DISPLAY_TOKEN`，先 `POST /functions/v1/api-key-exchange` 换 JWT。`/healthz`、`/readyz` 可匿名。
 
 ---
 

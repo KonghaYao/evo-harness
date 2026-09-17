@@ -883,6 +883,11 @@ func HubJobMap(j *HubJob, selectCols []string) map[string]any {
 		"created_by":       j.CreatedBy,
 		"is_hosted":        j.IsHosted,
 	}
+	if j.OrgID != nil && strings.TrimSpace(*j.OrgID) != "" {
+		m["organization"] = map[string]any{"id": *j.OrgID}
+	} else {
+		m["organization"] = nil
+	}
 	return project(m, selectCols)
 }
 
@@ -891,6 +896,7 @@ func HubTrialMap(t *HubTrial, selectCols []string) map[string]any {
 		"id":                t.ID,
 		"job_id":            t.JobID,
 		"trial_name":        t.TrialName,
+		"name":              t.TrialName,
 		"task_name":         t.TaskName,
 		"task_content_hash": t.TaskContentHash,
 		"lock":              parseMaybeJSON(t.Lock),
@@ -904,6 +910,11 @@ func HubTrialMap(t *HubTrial, selectCols []string) map[string]any {
 		"verifier":          parseMaybeJSON(t.Verifier),
 		"archive_path":      t.ArchivePath,
 		"trajectory_path":   t.TrajectoryPath,
+		"status":            nil,
+		"hosted_error":      nil,
+		"max_retries":       nil,
+		"started_at":        nil,
+		"finished_at":       nil,
 	}
 	return project(m, selectCols)
 }
@@ -935,8 +946,12 @@ func project(m map[string]any, cols []string) map[string]any {
 		if c == "*" || c == "" {
 			return m
 		}
-		if v, ok := m[c]; ok {
-			out[c] = v
+		key := c
+		if i := strings.Index(c, "("); i >= 0 {
+			key = strings.TrimSpace(c[:i])
+		}
+		if v, ok := m[key]; ok {
+			out[key] = v
 		}
 	}
 	return out
